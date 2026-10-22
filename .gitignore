@@ -38,5 +38,10 @@ Thumbs.db
 # Tests
 coverage/
 
+# Next.js
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
 # OpenCode / agentes
 .opencode/
