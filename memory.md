@@ -3,8 +3,8 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Fase 1 completada (tareas 1–7)**: scaffold, Prisma, Auth.js, landing, solicitudes, panel y decisión del cliente.
-- Siguiente: documentar la Fase 1 y planificar la Fase 2.
+- **Fase 1 completada (tareas 1–8)**: scaffold, Prisma, Auth, landing, solicitudes, panel, decisión y README.
+- Siguiente: planificar la Fase 2 (catálogo de productos y pedidos). Documentación: `README.md` y `docs/specs/fase-1.md`.
 
 ## Stack efectivo
 - Node 24.22.1 LTS · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7
@@ -20,10 +20,8 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - `authz.ts` decide (`puedeAcceder`): `/app` cualquier sesión, `/admin` solo staff; middleware + layouts.
 - Registro público siempre `cliente`; bcrypt ≤ 72 bytes; demo `@demo.local` con `Demo1234!`.
 
-## Landing pública
+## Landing y solicitudes
 - Grupo `(public)`, `/` estático; copy en `src/lib/site-content.ts` y componentes en `src/components/site/`.
-
-## Solicitudes de servicio
 - Validación Zod, datos y acción en `src/lib/validations/`, `src/server/data/` y `src/server/actions/`.
 - `clientId` sale de la sesión; Zod descarta `clientId`/`status`/`expiresAt` inyectados.
 - Formulario controlado con `onSubmit` + `useTransition`: evita el reset de React 19.
@@ -41,9 +39,9 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - Pagos simulados, datos ficticios; `build` sin Turbopack (`dev` con Turbopack); tema claro fijo.
 
 ## Próximos pasos
-- [x] Tareas 1–7: Fase 1 completa (última: detalle y decisión del cliente)
-- [ ] Documentar la Fase 1 (README + capturas) y planificar Fase 2
-- [ ] Deuda: rate limiting en login · emails · historial de estados
+- [x] Tareas 1–8: Fase 1 completa (última: README)
+- [ ] Planificar Fase 2: catálogo de productos y pedidos
+- [ ] Deuda: rate limiting en login · emails · tests de integración
 
 ## Aprendizajes / notas
 - Prisma 7: driver adapter y `output` obligatorios, `--to-schema`; `@latest` apunta a 8.0.0-rc.

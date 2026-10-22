@@ -33,16 +33,16 @@ Sin pagos reales. Sin e-commerce. Sin tickets internos.
 Fase 1 solo implementa hasta `aceptada`/`rechazada`. El resto queda para Fase 3.
 
 ## Criterios de aceptación Fase 1
-- [ ] Landing pública con secciones: hero, servicios, cómo funciona, contacto.
-- [ ] Registro de cliente con email único y contraseña hasheada.
-- [ ] Login/logout funcional.
-- [ ] Rutas `/app/*` y `/admin/*` protegidas en servidor por rol.
-- [ ] Cliente puede crear solicitud con validación Zod.
-- [ ] Cliente ve listado y detalle de sus solicitudes.
-- [ ] Encargado ve todas y puede cambiar estado.
-- [ ] Cliente puede aceptar o rechazar presupuesto; se calcula importe final.
-- [ ] Tests: al menos auth (registro/login) y creación de solicitud.
-- [ ] README con instrucciones y capturas.
+- [x] Landing pública con secciones: hero, servicios, cómo funciona, contacto.
+- [x] Registro de cliente con email único y contraseña hasheada.
+- [x] Login/logout funcional.
+- [x] Rutas `/app/*` y `/admin/*` protegidas en servidor por rol.
+- [x] Cliente puede crear solicitud con validación Zod.
+- [x] Cliente ve listado y detalle de sus solicitudes.
+- [x] Encargado ve todas y puede cambiar estado.
+- [x] Cliente puede aceptar o rechazar presupuesto; se calcula importe final.
+- [x] Tests: al menos auth (registro/login) y creación de solicitud.
+- [x] README con instrucciones y capturas.
 
 ## Fuera de alcance Fase 1
 - Carrito, productos, pedidos.
