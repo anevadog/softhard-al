@@ -6,8 +6,23 @@ Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, impor
 
 `Fase 1 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `94 tests`
 
+## Capturas
+
+**Landing pública**
+
+![Landing de SoftHard A&L con los servicios, el proceso de reparación y el contacto](docs/capturas/landing.png)
+
+**Panel del encargado**
+
+![Panel interno con el listado de solicitudes y los filtros por estado](docs/capturas/panel-encargado.png)
+
+**Detalle de la solicitud**
+
+![Detalle de una solicitud con el presupuesto y los botones para aceptar o rechazar](docs/capturas/detalle-solicitud.png)
+
 ## Índice
 
+- [Capturas](#capturas)
 - [Qué es](#qué-es)
 - [Funcionalidad de la Fase 1](#funcionalidad-de-la-fase-1)
 - [Stack tecnológico](#stack-tecnológico)
