@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 
 export const metadata = {
-  title: "Mi área | SoftHard A&L",
+  title: "Mi área",
 };
 
 export default async function AppHomePage() {

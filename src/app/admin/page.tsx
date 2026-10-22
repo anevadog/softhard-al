@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
 export const metadata = {
-  title: "Solicitudes | Panel interno",
+  title: "Solicitudes",
 };
 
 export default async function AdminHomePage() {
