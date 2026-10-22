@@ -1,9 +1,29 @@
 import type {
   EquipmentType,
   Modality,
+  QuoteStatus,
   ServiceStatus,
   TimeSlot,
 } from "@/generated/prisma/enums";
+
+/** Todos los estados en el orden del flujo. Base para validación y filtros. */
+export const SERVICE_STATUSES = [
+  "pendiente",
+  "diagnosticada",
+  "aceptada",
+  "rechazada",
+  "expirada",
+  "en_reparacion",
+  "lista",
+  "entregada",
+] as const satisfies readonly ServiceStatus[];
+
+export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
+  pendiente: "Pendiente de decisión",
+  aceptado: "Aceptado",
+  rechazado: "Rechazado",
+  expirado: "Expirado",
+};
 
 /** Clases Tailwind completas: deben ser literales para que el escáner las detecte. */
 export const SERVICE_STATUS_META: Record<
@@ -77,4 +97,45 @@ export type SolicitudResumen = {
   timeSlot: TimeSlot;
   status: ServiceStatus;
   createdAt: Date;
+};
+
+/** Presupuesto con importes ya convertidos a número para la UI. */
+export type PresupuestoAdmin = {
+  id: string;
+  budgetAmount: number;
+  diagnosticFee: number;
+  finalAmount: number | null;
+  status: QuoteStatus;
+  expiresAt: Date;
+  decidedAt: Date | null;
+  createdAt: Date;
+};
+
+/** Fila del listado global del panel interno. */
+export type SolicitudAdminResumen = {
+  id: string;
+  createdAt: Date;
+  status: ServiceStatus;
+  equipmentType: EquipmentType;
+  brand: string;
+  model: string;
+  client: { name: string; email: string };
+  quote: { id: string } | null;
+};
+
+/** Detalle de una solicitud en el panel interno. */
+export type SolicitudAdminDetalle = {
+  id: string;
+  createdAt: Date;
+  status: ServiceStatus;
+  equipmentType: EquipmentType;
+  brand: string;
+  model: string;
+  issue: string;
+  modality: Modality;
+  timeSlot: TimeSlot;
+  preferredDate: Date | null;
+  expiresAt: Date | null;
+  client: { name: string; email: string; phone: string | null };
+  quote: PresupuestoAdmin | null;
 };

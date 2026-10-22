@@ -32,6 +32,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <Link href="/admin" className="text-sm font-semibold text-slate-900">
               Panel interno
             </Link>
+
+            <nav aria-label="Panel interno" className="text-sm">
+              <Link
+                href="/admin/solicitudes"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Solicitudes
+              </Link>
+            </nav>
+
             <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
               {user.role}
             </span>
