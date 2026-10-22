@@ -3,8 +3,8 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Tareas 1–6 completadas**: scaffold, Prisma + seed, Auth.js, landing, solicitudes y panel.
-- Siguiente: aceptar/rechazar presupuesto desde el área del cliente.
+- **Fase 1 completada (tareas 1–7)**: scaffold, Prisma, Auth.js, landing, solicitudes, panel y decisión del cliente.
+- Siguiente: documentar la Fase 1 y planificar la Fase 2.
 
 ## Stack efectivo
 - Node 24.22.1 LTS · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7
@@ -27,23 +27,23 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - Validación Zod, datos y acción en `src/lib/validations/`, `src/server/data/` y `src/server/actions/`.
 - `clientId` sale de la sesión; Zod descarta `clientId`/`status`/`expiresAt` inyectados.
 - Formulario controlado con `onSubmit` + `useTransition`: evita el reset de React 19.
-- `/app/solicitudes` filtra por cliente; badges de estado en un mapa estático (Tailwind los detecta).
+- `/app/solicitudes` filtra por cliente; tarjetas enlazadas al detalle.
 
-## Panel del encargado
-- `/admin` redirige a `/admin/solicitudes`; filtro por estado con contadores (`?estado=`).
-- `requerirStaff()` revalida el rol en BD en cada Server Action (el JWT no basta).
-- Presupuesto: X e N de `Config`; copia de X en `diagnosticFee`; `finalAmount = presupuesto − X`.
-- Al rechazar, `finalAmount = X`; la creación pasa la solicitud a `diagnosticada` (transacción).
-- Un presupuesto por solicitud (`requestId` único); importes en céntimos, guardados como cadena.
+## Panel y decisión
+- `/admin` redirige a `/admin/solicitudes`; `requerirStaff()` revalida rol en BD en cada acción.
+- Presupuesto: X e N de `Config`; X copiada en `diagnosticFee`; `finalAmount = presupuesto − X`; rechazo → `X`.
+- Un presupuesto por solicitud; importes en céntimos y guardados como cadena.
+- Cliente decide si está `pendiente`, la solicitud sigue abierta y no venció; acepta/rechaza en el detalle.
+- Expiración perezosa al leer: `expirado`/`expirada` (sin cron); propiedad por `{ id, clientId }`.
 
 ## Decisiones
 - Roles: cliente, trabajador, encargado, admin. En Fase 1 `admin` = `encargado`.
 - Pagos simulados, datos ficticios; `build` sin Turbopack (`dev` con Turbopack); tema claro fijo.
 
 ## Próximos pasos
-- [x] Seed `Config` · Auth.js + roles · landing · solicitudes · panel del encargado
-- [ ] Cliente: aceptar/rechazar presupuesto y ver importe final
-- [ ] Deuda: rate limiting en login · README + capturas
+- [x] Tareas 1–7: Fase 1 completa (última: detalle y decisión del cliente)
+- [ ] Documentar la Fase 1 (README + capturas) y planificar Fase 2
+- [ ] Deuda: rate limiting en login · emails · historial de estados
 
 ## Aprendizajes / notas
 - Prisma 7: driver adapter y `output` obligatorios, `--to-schema`; `@latest` apunta a 8.0.0-rc.

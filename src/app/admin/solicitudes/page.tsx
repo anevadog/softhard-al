@@ -9,6 +9,7 @@ import {
   contarPorEstado,
   listarSolicitudesAdmin,
 } from "@/server/data/admin-requests";
+import { expirarPresupuestosVencidos } from "@/server/data/service-requests";
 
 export const metadata = {
   title: "Solicitudes",
@@ -21,6 +22,9 @@ export default async function AdminSolicitudesPage({
 }) {
   const { estado } = await searchParams;
   const filtro = SERVICE_STATUSES.find((valor) => valor === estado);
+
+  // Expiraciones perezosas: así los contadores y el listado cuadran.
+  await expirarPresupuestosVencidos();
 
   const [solicitudes, conteos] = await Promise.all([
     listarSolicitudesAdmin(filtro),

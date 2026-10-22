@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { DECISIONES } from "@/lib/quotes";
 import { SERVICE_STATUSES } from "@/lib/service-requests";
 
 /**
@@ -27,3 +28,10 @@ export const estadoSolicitudSchema = z.object({
 });
 
 export type EstadoSolicitudInput = z.infer<typeof estadoSolicitudSchema>;
+
+export const decisionSchema = z.object({
+  requestId: z.string().trim().min(1, "Solicitud no válida"),
+  decision: z.enum(DECISIONES, { error: "Decisión no válida" }),
+});
+
+export type DecisionInput = z.infer<typeof decisionSchema>;

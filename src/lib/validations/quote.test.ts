@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { estadoSolicitudSchema, quoteSchema } from "@/lib/validations/quote";
+import {
+  decisionSchema,
+  estadoSolicitudSchema,
+  quoteSchema,
+} from "@/lib/validations/quote";
 
 const VALID = {
   requestId: "cmvjq59860000mgwbex9gdgjz",
@@ -76,5 +80,51 @@ describe("estadoSolicitudSchema", () => {
     expect(
       estadoSolicitudSchema.safeParse({ requestId: VALID.requestId, status: "cancelada" }).success,
     ).toBe(false);
+  });
+});
+
+describe("decisionSchema", () => {
+  it("acepta la decisión de aceptar", () => {
+    expect(
+      decisionSchema.parse({ requestId: VALID.requestId, decision: "aceptar" }).decision,
+    ).toBe("aceptar");
+  });
+
+  it("acepta la decisión de rechazar", () => {
+    expect(
+      decisionSchema.parse({ requestId: VALID.requestId, decision: "rechazar" }).decision,
+    ).toBe("rechazar");
+  });
+
+  it("rechaza decisiones inventadas", () => {
+    expect(
+      decisionSchema.safeParse({ requestId: VALID.requestId, decision: "cancelar" }).success,
+    ).toBe(false);
+  });
+
+  it("rechaza una decisión vacía", () => {
+    expect(
+      decisionSchema.safeParse({ requestId: VALID.requestId, decision: "" }).success,
+    ).toBe(false);
+  });
+
+  it("rechaza un requestId vacío", () => {
+    expect(
+      decisionSchema.safeParse({ requestId: "  ", decision: "aceptar" }).success,
+    ).toBe(false);
+  });
+
+  it("descarta importes y estados inyectados en el formulario", () => {
+    const result = decisionSchema.parse({
+      requestId: VALID.requestId,
+      decision: "aceptar",
+      finalAmount: "0",
+      budgetAmount: "1",
+      status: "aceptada",
+    });
+
+    expect(result).not.toHaveProperty("finalAmount");
+    expect(result).not.toHaveProperty("budgetAmount");
+    expect(result).not.toHaveProperty("status");
   });
 });

@@ -1,4 +1,5 @@
 import { formatEuros } from "@/lib/format";
+import type { QuoteStatus, ServiceStatus } from "@/generated/prisma/enums";
 
 /**
  * Reglas de negocio de presupuestos. Se opera en céntimos para no arrastrar
@@ -6,6 +7,11 @@ import { formatEuros } from "@/lib/format";
  */
 
 const MAX_IMPORTE = 999999.99;
+
+/** Decisiones que puede tomar el cliente sobre un presupuesto. */
+export const DECISIONES = ["aceptar", "rechazar"] as const;
+
+export type Decision = (typeof DECISIONES)[number];
 
 function aCentimos(importe: number): number {
   return Math.round(importe * 100);
@@ -59,4 +65,65 @@ export function calcularExpiracion(base: Date, dias: number): Date {
   resultado.setDate(resultado.getDate() + dias);
 
   return resultado;
+}
+
+/**
+ * Un presupuesto está vencido desde el mismo instante de su caducidad. Se
+ * evalúa de forma perezosa: no hay cron en Fase 1.
+ */
+export function estaExpirado(expiresAt: Date, ahora: Date): boolean {
+  return expiresAt.getTime() <= ahora.getTime();
+}
+
+/** Estados de solicitud en los que el cliente todavía puede decidir. */
+const ESTADOS_SOLICITUD_DECISION: readonly ServiceStatus[] = [
+  "pendiente",
+  "diagnosticada",
+];
+
+/**
+ * Única regla de decisión del cliente: presupuesto pendiente, no vencido y
+ * solicitud aún abierta.
+ */
+export function puedeDecidir(
+  estadoSolicitud: ServiceStatus,
+  estadoPresupuesto: QuoteStatus,
+  expiresAt: Date,
+  ahora: Date,
+): boolean {
+  return (
+    estadoPresupuesto === "pendiente" &&
+    ESTADOS_SOLICITUD_DECISION.includes(estadoSolicitud) &&
+    !estaExpirado(expiresAt, ahora)
+  );
+}
+
+export type ResultadoDecision = {
+  estadoSolicitud: "aceptada" | "rechazada";
+  estadoPresupuesto: "aceptado" | "rechazado";
+  importeFinal: number;
+};
+
+/**
+ * Traduce una decisión a los estados e importe final que se guardan. El
+ * importe se recalcula aquí: nunca se acepta un importe del formulario.
+ */
+export function resolverDecision(
+  decision: Decision,
+  presupuesto: number,
+  tarifaDiagnostico: number,
+): ResultadoDecision {
+  if (decision === "aceptar") {
+    return {
+      estadoSolicitud: "aceptada",
+      estadoPresupuesto: "aceptado",
+      importeFinal: calcularImporteSiAcepta(presupuesto, tarifaDiagnostico),
+    };
+  }
+
+  return {
+    estadoSolicitud: "rechazada",
+    estadoPresupuesto: "rechazado",
+    importeFinal: calcularImporteSiRechaza(tarifaDiagnostico),
+  };
 }

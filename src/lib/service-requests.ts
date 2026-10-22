@@ -139,3 +139,27 @@ export type SolicitudAdminDetalle = {
   client: { name: string; email: string; phone: string | null };
   quote: PresupuestoAdmin | null;
 };
+
+/** Presupuesto tal y como lo ve el cliente. */
+export type PresupuestoCliente = {
+  budgetAmount: number;
+  diagnosticFee: number;
+  finalAmount: number | null;
+  status: QuoteStatus;
+  expiresAt: Date;
+  decidedAt: Date | null;
+};
+
+/** Detalle de una solicitud en el área del cliente. */
+export type SolicitudClienteDetalle = {
+  id: string;
+  createdAt: Date;
+  status: ServiceStatus;
+  equipmentType: EquipmentType;
+  brand: string;
+  model: string;
+  issue: string;
+  modality: Modality;
+  timeSlot: TimeSlot;
+  quote: PresupuestoCliente | null;
+};

@@ -1,10 +1,17 @@
+import type { QuoteStatus } from "@/generated/prisma/enums";
 import { formatearFechaCorta, formatEuros } from "@/lib/format";
-import {
-  QUOTE_STATUS_LABELS,
-  type PresupuestoAdmin,
-} from "@/lib/service-requests";
+import { QUOTE_STATUS_LABELS } from "@/lib/service-requests";
 
-export function QuoteSummary({ quote }: { quote: PresupuestoAdmin }) {
+/** Campos comunes al presupuesto del panel y al del cliente. */
+type PresupuestoResumen = {
+  budgetAmount: number;
+  diagnosticFee: number;
+  finalAmount: number | null;
+  status: QuoteStatus;
+  expiresAt: Date;
+};
+
+export function QuoteSummary({ quote }: { quote: PresupuestoResumen }) {
   return (
     <div className="space-y-3 text-sm">
       <dl className="space-y-2">
@@ -21,14 +28,20 @@ export function QuoteSummary({ quote }: { quote: PresupuestoAdmin }) {
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-2">
           <dt className="font-medium text-slate-900">Importe final</dt>
           <dd className="font-semibold text-slate-900">
-            {quote.finalAmount === null ? "—" : formatEuros(quote.finalAmount)}
+            {quote.finalAmount === null || quote.status === "expirado"
+              ? "—"
+              : formatEuros(quote.finalAmount)}
           </dd>
         </div>
       </dl>
 
       <p className="text-xs text-slate-500">
-        {QUOTE_STATUS_LABELS[quote.status]} · Expira el{" "}
-        {formatearFechaCorta(quote.expiresAt)}
+        {QUOTE_STATUS_LABELS[quote.status]}
+        {quote.status === "pendiente"
+          ? ` · Expira el ${formatearFechaCorta(quote.expiresAt)}`
+          : quote.status === "expirado"
+            ? ` · Caducó el ${formatearFechaCorta(quote.expiresAt)}`
+            : null}
       </p>
     </div>
   );

@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { QuoteForm } from "@/components/admin/quote-form";
-import { QuoteSummary } from "@/components/admin/quote-summary";
 import { StatusForm } from "@/components/admin/status-form";
+import { QuoteSummary } from "@/components/service-requests/quote-summary";
 import { StatusBadge } from "@/components/service-requests/status-badge";
 import { formatearFechaCorta } from "@/lib/format";
 import {

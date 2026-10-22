@@ -6,8 +6,12 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth";
 import type { FormState } from "@/lib/form-state";
+import { decisionSchema } from "@/lib/validations/quote";
 import { serviceRequestSchema } from "@/lib/validations/service-request";
-import { crearSolicitudCliente } from "@/server/data/service-requests";
+import {
+  crearSolicitudCliente,
+  decidirPresupuestoCliente,
+} from "@/server/data/service-requests";
 
 export async function crearSolicitudAction(
   _prevState: FormState,
@@ -56,4 +60,55 @@ export async function crearSolicitudAction(
   revalidatePath("/app/solicitudes");
 
   redirect("/app/solicitudes?creada=1");
+}
+
+export async function decidirPresupuestoAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  // Una Server Action es un endpoint público: sesión y propiedad se comprueban
+  // aquí, aunque la página ya las haya validado.
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login?callbackUrl=/app/solicitudes");
+  }
+
+  const parsed = decisionSchema.safeParse({
+    requestId: formData.get("requestId"),
+    decision: formData.get("decision"),
+  });
+
+  if (!parsed.success) {
+    return { status: "error", message: "Decisión no válida." };
+  }
+
+  const resultado = await decidirPresupuestoCliente(
+    parsed.data.requestId,
+    session.user.id,
+    parsed.data.decision,
+  );
+
+  if (!resultado.ok) {
+    const mensajes = {
+      "no-existe": "La solicitud ya no existe.",
+      "sin-presupuesto": "Esta solicitud todavía no tiene presupuesto.",
+      "no-decidible": "El presupuesto ya no admite cambios.",
+      expirado: "El presupuesto ha caducado. Contacta con el taller.",
+    } as const;
+
+    return { status: "error", message: mensajes[resultado.motivo] };
+  }
+
+  revalidatePath("/app");
+  revalidatePath("/app/solicitudes");
+  revalidatePath(`/app/solicitudes/${parsed.data.requestId}`);
+  revalidatePath("/admin/solicitudes");
+  revalidatePath(`/admin/solicitudes/${parsed.data.requestId}`);
+
+  redirect(
+    `/app/solicitudes/${parsed.data.requestId}?decision=${
+      resultado.decision === "aceptar" ? "aceptada" : "rechazada"
+    }`,
+  );
 }

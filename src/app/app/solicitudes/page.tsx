@@ -61,7 +61,12 @@ export default async function SolicitudesPage({
         <ul className="space-y-3">
           {solicitudes.map((solicitud) => (
             <li key={solicitud.id}>
-              <RequestCard solicitud={solicitud} />
+              <Link
+                href={`/app/solicitudes/${solicitud.id}`}
+                className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              >
+                <RequestCard solicitud={solicitud} />
+              </Link>
             </li>
           ))}
         </ul>
