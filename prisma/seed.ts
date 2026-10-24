@@ -70,6 +70,16 @@ const DEMO_PRODUCTS = [
     imageUrl: null,
     category: "accesorios" as const,
   },
+  {
+    id: "demo-prod-monitor-lg-24",
+    name: "Monitor LG 24 pulgadas",
+    description:
+      "Monitor LED Full HD de 24 pulgadas con panel IPS y conexión HDMI.",
+    price: "129.00",
+    stock: 0,
+    imageUrl: null,
+    category: "accesorios" as const,
+  },
 ];
 
 /**

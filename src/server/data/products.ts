@@ -1,6 +1,6 @@
 import type { ProductCategory } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
-import type { ProductoAdmin } from "@/lib/products";
+import type { ProductoAdmin, ProductoPublico } from "@/lib/products";
 
 export type DatosProducto = {
   name: string;
@@ -24,6 +24,16 @@ const PRODUCTO_SELECT = {
   updatedAt: true,
 } as const;
 
+const PRODUCTO_PUBLICO_SELECT = {
+  id: true,
+  name: true,
+  description: true,
+  price: true,
+  stock: true,
+  imageUrl: true,
+  category: true,
+} as const;
+
 /** Convierte el Decimal de Prisma en número para la capa de UI. */
 function aProductoAdmin(producto: {
   id: string;
@@ -41,6 +51,37 @@ function aProductoAdmin(producto: {
     ...producto,
     price: Number(producto.price),
   };
+}
+
+function aProductoPublico(producto: {
+  id: string;
+  name: string;
+  description: string;
+  price: unknown;
+  stock: number;
+  imageUrl: string | null;
+  category: ProductCategory;
+}): ProductoPublico {
+  return {
+    ...producto,
+    price: Number(producto.price),
+  };
+}
+
+/** Catálogo público: solo productos activos y, si se indica, de una categoría. */
+export async function listarProductosPublicos(
+  categoria?: ProductCategory,
+): Promise<ProductoPublico[]> {
+  const productos = await prisma.product.findMany({
+    where: {
+      active: true,
+      ...(categoria ? { category: categoria } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    select: PRODUCTO_PUBLICO_SELECT,
+  });
+
+  return productos.map(aProductoPublico);
 }
 
 export async function listarProductosAdmin(): Promise<ProductoAdmin[]> {

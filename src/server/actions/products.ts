@@ -54,6 +54,7 @@ export async function crearProductoAction(
   }
 
   revalidatePath("/admin/productos");
+  revalidatePath("/productos");
   redirect("/admin/productos?creado=1");
 }
 
@@ -101,6 +102,7 @@ export async function editarProductoAction(
 
   revalidatePath("/admin/productos");
   revalidatePath(`/admin/productos/${parsedId.data}`);
+  revalidatePath("/productos");
   redirect("/admin/productos?actualizado=1");
 }
 
@@ -135,5 +137,6 @@ export async function borrarProductoAction(
   }
 
   revalidatePath("/admin/productos");
+  revalidatePath("/productos");
   redirect("/admin/productos?borrado=1");
 }

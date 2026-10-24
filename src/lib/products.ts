@@ -1,5 +1,7 @@
 import type { ProductCategory } from "@/generated/prisma/enums";
 
+export type { ProductCategory };
+
 /** Categorías disponibles en el catálogo. Deben coincidir con el enum de Prisma. */
 export const PRODUCT_CATEGORIES = [
   "ordenadores",
@@ -33,6 +35,12 @@ export type ProductoAdmin = {
 
 /** Datos que necesita el formulario de edición. */
 export type ProductoEditable = Pick<
+  ProductoAdmin,
+  "id" | "name" | "description" | "price" | "stock" | "imageUrl" | "category"
+>;
+
+/** Producto visible en el catálogo público (solo campos publicables). */
+export type ProductoPublico = Pick<
   ProductoAdmin,
   "id" | "name" | "description" | "price" | "stock" | "imageUrl" | "category"
 >;
