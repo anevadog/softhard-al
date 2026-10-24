@@ -3,8 +3,9 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Fase 1 completada (tareas 1–8)**: scaffold, Prisma, Auth, landing, solicitudes, panel, decisión y README.
-- Siguiente: planificar la Fase 2 (catálogo de productos y pedidos). Documentación: `README.md` y `docs/specs/fase-1.md`.
+- **Fase 1 completada (tareas 1–8)**.
+- **Fase 2, tarea 1 completada**: modelo `Product`, migración, seed de 5 productos y CRUD en `/admin/productos`.
+- Siguiente: catálogo público y ficha de producto. Specs en `docs/specs/fase-1.md` y `fase-2.md`.
 
 ## Stack efectivo
 - Node 24.22.1 LTS · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7
@@ -20,29 +21,30 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - `authz.ts` decide (`puedeAcceder`): `/app` cualquier sesión, `/admin` solo staff; middleware + layouts.
 - Registro público siempre `cliente`; bcrypt ≤ 72 bytes; demo `@demo.local` con `Demo1234!`.
 
-## Landing y solicitudes
-- Grupo `(public)`, `/` estático; copy en `src/lib/site-content.ts` y componentes en `src/components/site/`.
-- Validación Zod, datos y acción en `src/lib/validations/`, `src/server/data/` y `src/server/actions/`.
-- `clientId` sale de la sesión; Zod descarta `clientId`/`status`/`expiresAt` inyectados.
-- Formulario controlado con `onSubmit` + `useTransition`: evita el reset de React 19.
-- `/app/solicitudes` filtra por cliente; tarjetas enlazadas al detalle.
-
-## Panel y decisión
-- `/admin` redirige a `/admin/solicitudes`; `requerirStaff()` revalida rol en BD en cada acción.
+## Solicitudes y panel
+- Landing en `(public)`; copy en `src/lib/site-content.ts`; validación Zod, datos y acciones en `src/lib/validations/` y `src/server/`.
+- `clientId` sale de la sesión; Zod descarta campos inyectados. Formulario controlado con `onSubmit` + `useTransition`.
+- `/app/solicitudes` filtra por cliente; `/admin` redirige a `/admin/solicitudes`; `requerirStaff()` revalida rol en BD.
 - Presupuesto: X e N de `Config`; X copiada en `diagnosticFee`; `finalAmount = presupuesto − X`; rechazo → `X`.
 - Un presupuesto por solicitud; importes en céntimos y guardados como cadena.
-- Cliente decide si está `pendiente`, la solicitud sigue abierta y no venció; acepta/rechaza en el detalle.
-- Expiración perezosa al leer: `expirado`/`expirada` (sin cron); propiedad por `{ id, clientId }`.
+- Cliente decide si está `pendiente`, la solicitud sigue abierta y no venció; expiración perezosa sin cron.
+
+## Productos
+- Enum fijo `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl` opcional y `active` para borrado lógico.
+- `listarProductosAdmin`/`crear`/`actualizar`/`archivar` en `src/server/data/products.ts`; acciones con `requerirStaff()`.
+- Formulario controlado: precio en coma o punto; URL http(s) o vacía → `null`; placeholder `/productos/placeholder.svg`.
+- Seed idempotente con 5 productos de IDs fijos; borrar = `active: false` (no aparece en panel ni catálogo).
+- Tests: **119** en 12 archivos (14 de validación y 11 de acciones nuevos).
 
 ## Decisiones
 - Roles: cliente, trabajador, encargado, admin. En Fase 1 `admin` = `encargado`.
 - Pagos simulados, datos ficticios; `build` sin Turbopack (`dev` con Turbopack); tema claro fijo.
 
 ## Próximos pasos
-- [x] Tareas 1–8: Fase 1 completa (última: README)
-- [ ] Planificar Fase 2: catálogo de productos y pedidos
-- [ ] Deuda: rate limiting en login · emails · tests de integración
+- [x] Fase 1 completa (tareas 1–8) y README.
+- [x] Fase 2, tarea 1: catálogo interno de productos.
+- [ ] Fase 2: catálogo público, detalle, carrito y pedidos.
+- [ ] Deuda: rate limiting en login, emails y tests de integración.
 
 ## Aprendizajes / notas
-- Prisma 7: driver adapter y `output` obligatorios, `--to-schema`; `@latest` apunta a 8.0.0-rc.
-- Auth.js v5: augmentar **`@auth/core/jwt`** y `next-auth/jwt`, o `token.id` es `unknown`.
+- Prisma 7: driver adapter y `output` obligatorios; `migrate dev` puede no regenerar el cliente. Auth.js v5: augmentar `@auth/core/jwt` y `next-auth/jwt`.

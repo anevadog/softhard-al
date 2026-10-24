@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `94 tests`
+`Fase 1 completada` · `Fase 2 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `119 tests`
 
 ## Capturas
 
@@ -24,7 +24,7 @@ Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, impor
 
 - [Capturas](#capturas)
 - [Qué es](#qué-es)
-- [Funcionalidad de la Fase 1](#funcionalidad-de-la-fase-1)
+- [Funcionalidad](#funcionalidad)
 - [Stack tecnológico](#stack-tecnológico)
 - [Puesta en marcha](#puesta-en-marcha)
 - [Usuarios de prueba](#usuarios-de-prueba)
@@ -44,16 +44,18 @@ SoftHard A&L es una aplicación full stack que cubre el ciclo completo de una re
 3. El encargado revisa la solicitud, emite un presupuesto y gestiona su estado.
 4. El cliente acepta o rechaza el presupuesto dentro del plazo y ve el importe final que le corresponde.
 
-La venta de productos (catálogo y pedidos) llegará en la Fase 2; esta primera fase se centra en el servicio técnico.
+La Fase 2 ya está en marcha: empieza por el catálogo interno de productos. La tienda pública, el carrito y los pedidos llegan en las siguientes tareas.
 
-## Funcionalidad de la Fase 1
+## Funcionalidad
 
-### Público
+### Fase 1: servicio técnico
+
+#### Público
 
 - Landing con hero, servicios, cómo funciona y contacto.
 - Registro de nuevos clientes con email único y contraseña hasheada.
 
-### Cliente
+#### Cliente
 
 - Inicio y cierre de sesión.
 - Creación de solicitudes con validación en servidor: tipo de equipo, marca, modelo, problema, modalidad (domicilio o taller) y franja horaria.
@@ -61,12 +63,20 @@ La venta de productos (catálogo y pedidos) llegará en la Fase 2; esta primera 
 - Visualización del presupuesto: importe, tarifa de diagnóstico e importe final.
 - Aceptación o rechazo del presupuesto, con expiración automática a los 7 días.
 
-### Encargado / administrador
+#### Encargado / administrador
 
 - Panel con todas las solicitudes y filtro por estado con contadores.
 - Detalle de cada solicitud con datos del cliente, equipo y problema.
 - Creación del presupuesto con vista previa del importe final.
 - Cambio manual de estado entre los 8 estados del flujo.
+
+### Fase 2 (en curso)
+
+- Catálogo interno en `/admin/productos` con listado, precio, stock y categoría.
+- Creación y edición de productos con validación Zod en servidor.
+- Borrado lógico: el producto se archiva y deja de mostrarse en el catálogo.
+- Solo `encargado` y `admin` acceden al panel; `cliente` y `trabajador` son redirigidos.
+- Cinco productos de demostración creados por el seed.
 
 ## Stack tecnológico
 
@@ -134,7 +144,7 @@ createdb softhard
 # 5. Aplica migraciones y genera el cliente de Prisma
 npx prisma migrate dev
 
-# 6. Carga la configuración y los usuarios de demostración
+# 6. Carga la configuración, los usuarios y los productos de demostración
 npx prisma db seed
 
 # 7. Arranca el servidor de desarrollo
@@ -166,10 +176,10 @@ El seed es idempotente y crea cuatro cuentas con la misma contraseña: **`Demo12
 |---|---|---|
 | `cliente@demo.local` | cliente | `/app` |
 | `trabajador@demo.local` | trabajador | `/app` (sin acceso al panel) |
-| `encargado@demo.local` | encargado | `/admin/solicitudes` |
-| `admin@demo.local` | admin | `/admin/solicitudes` |
+| `encargado@demo.local` | encargado | `/admin` (solicitudes y productos) |
+| `admin@demo.local` | admin | `/admin` (solicitudes y productos) |
 
-En la Fase 1, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio: **30 €** de tarifa de diagnóstico y **7 días** de validez del presupuesto.
+En la Fase 1, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico y **7 días** de validez del presupuesto) y cinco productos de demostración para el catálogo.
 
 ## Scripts
 
@@ -187,7 +197,7 @@ Comandos de base de datos:
 
 ```bash
 npx prisma migrate dev   # aplica migraciones en desarrollo
-npx prisma db seed       # carga configuración y usuarios demo
+npx prisma db seed       # carga configuración, usuarios y productos demo
 npx prisma studio        # explora la base de datos
 ```
 
@@ -204,10 +214,11 @@ src/
   components/
     site/                  secciones de la landing
     service-requests/      solicitudes, presupuestos y decisión
-    admin/                 tabla, formulario y cambio de estado
+    admin/                 solicitudes y CRUD de productos
   lib/
     auth.ts, authz.ts      autenticación y permisos
     quotes.ts              reglas puras de importes y expiración
+    products.ts            categorías y tipos del catálogo
     validations/           esquemas Zod
   server/
     actions/               Server Actions (mutaciones)
@@ -216,7 +227,8 @@ prisma/
   schema.prisma
   migrations/
   seed.ts
-docs/specs/               especificación de la Fase 1
+public/productos/          placeholder de producto
+docs/specs/               especificaciones de Fase 1 y Fase 2
 ```
 
 ## Decisiones de arquitectura
@@ -245,7 +257,7 @@ La expiración es **perezosa**: no hay cron. Al leer una solicitud se comprueba 
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **94 tests** en 10 archivos (`npm run test`).
+- **119 tests** en 12 archivos (`npm run test`), incluidos los de validación y acciones del catálogo.
 - TypeScript estricto y ESLint en cada cambio.
 - Pendiente como deuda: tests de integración con base de datos y de los flujos completos de permisos.
 
@@ -271,12 +283,15 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] Tests de la lógica de negocio.
 - [x] README con instrucciones.
 
-### Fase 2 — siguiente
+### Fase 2 — en curso
 
-- Catálogo de productos y fichas de producto.
-- Carrito y realización de pedidos.
-- Gestión básica de stock.
-- Integración del catálogo con el área de cliente.
+- [x] Modelo `Product` y migración.
+- [x] CRUD interno de productos en `/admin/productos`.
+- [x] Productos demo en el seed y tests de validación/acciones.
+- [ ] Catálogo público y fichas de producto.
+- [ ] Carrito y realización de pedidos.
+- [ ] Gestión básica de stock.
+- [ ] Integración del catálogo con el área de cliente.
 
 ### Fase 3 — futuro
 
@@ -286,10 +301,10 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 
 ## Fuera de alcance
 
-Estas funciones no forman parte de la Fase 1 y se han dejado explícitamente fuera:
+Estas funciones quedan fuera del alcance actual (Fase 1 y catálogo interno de la Fase 2):
 
 - Pagos reales y pasarela de pago.
-- E-commerce completo (carrito, pedidos, stock).
+- E-commerce completo (carrito, pedidos y stock automático).
 - Tickets internos y fichaje de horas.
 - Contabilidad y facturación.
 - Emails automáticos y notificaciones.
@@ -297,7 +312,8 @@ Estas funciones no forman parte de la Fase 1 y se han dejado explícitamente fue
 
 ## Documentación
 
-- [`docs/specs/fase-1.md`](docs/specs/fase-1.md) — objetivos, historias de usuario y criterios de aceptación.
+- [`docs/specs/fase-1.md`](docs/specs/fase-1.md) — objetivos, historias de usuario y criterios de aceptación de la Fase 1.
+- [`docs/specs/fase-2.md`](docs/specs/fase-2.md) — alcance del catálogo y criterios de la Fase 2.
 - [`AGENTS.md`](AGENTS.md) — convenciones y reglas de trabajo del repositorio.
 - [`memory.md`](memory.md) — estado y notas de continuidad del proyecto.
 
