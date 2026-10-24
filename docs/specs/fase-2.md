@@ -1,9 +1,9 @@
-# Spec Fase 2 — Catálogo y productos
+# Spec Fase 2 — Catálogo, productos y carrito
 
 ## Objetivo
 
-Construir la base del e-commerce: catálogo público y gestión interna de productos.
-La ficha de detalle, el carrito y los pedidos llegan en tareas posteriores.
+Construir la base del e-commerce: catálogo público, gestión interna de productos y
+carrito local. La ficha de detalle y los pedidos llegan en tareas posteriores.
 
 ## Alcance de la Tarea 1
 
@@ -22,9 +22,23 @@ La ficha de detalle, el carrito y los pedidos llegan en tareas posteriores.
 - Filtros por categoría mediante URL: todos, ordenadores, portátiles, impresoras,
   accesorios y consumibles.
 - Producto sin stock marcado como «Agotado» y botón de compra deshabilitado.
-- Botón «Añadir al carrito» informativo, sin carrito real todavía.
+- Botón «Añadir al carrito» preparado para conectarse al carrito en la Tarea 3.
 - Enlaces al catálogo desde la cabecera y el hero de la landing.
 - Producto de demostración agotado para visualizar el estado.
+
+## Alcance de la Tarea 3
+
+- Carrito accesible desde `/carrito` y desde el icono de la cabecera.
+- Persistencia en LocalStorage con clave versionada `softhard-carrito-v1`.
+- Solo se guardan `productId` y `quantity`; nunca precios ni copias del producto.
+- Contador de unidades totales en la cabecera, con `99+` por encima de 99.
+- Añadir desde el catálogo con confirmación temporal y límite de stock.
+- Líneas con precio unitario, control `+`/`-`, subtotal y total.
+- Eliminación de líneas y estado vacío con enlace al catálogo.
+- Revalidación de precios, stock y disponibilidad con una Server Action pública.
+- Productos inexistentes, inactivos o sin stock se retiran; las cantidades
+  superiores al stock se ajustan con aviso.
+- Botón «Finalizar compra» deshabilitado; el checkout no entra en esta tarea.
 
 ## Actores
 
@@ -44,6 +58,11 @@ La ficha de detalle, el carrito y los pedidos llegan en tareas posteriores.
 7. Como visitante quiero filtrar los productos por categoría.
 8. Como visitante quiero saber si un producto está disponible antes de intentar comprarlo.
 9. Como visitante quiero acceder al catálogo desde la portada.
+10. Como visitante quiero añadir productos al carrito sin crear una cuenta.
+11. Como visitante quiero ver en la cabecera cuántas unidades llevo.
+12. Como visitante quiero revisar el precio unitario, la cantidad y el total.
+13. Como visitante quiero ajustar cantidades o eliminar productos antes de comprar.
+14. Como visitante quiero conservar el carrito si recargo la página.
 
 ## Modelo
 
@@ -86,6 +105,15 @@ model Product {
 - Stock 0 se muestra como «Agotado» y no permite añadir al carrito.
 - Stock 1–3 avisa de pocas unidades; a partir de 4 se muestra el total disponible.
 - Una categoría desconocida en la URL equivale a «Todos».
+- El carrito anónimo vive en LocalStorage; no crea pedidos ni descuenta stock.
+- La clave de almacenamiento está versionada; los datos malformados o de una
+  versión anterior se descartan sin romper la página.
+- El navegador solo guarda IDs y cantidades; los precios y el stock se consultan
+  siempre a la base de datos al abrir el carrito.
+- El contador suma unidades, no líneas. Por encima de 99 se muestra `99+`.
+- Añadir respeta el stock y el carrito no permite superar el stock actual.
+- Un producto inexistente, inactivo o con stock 0 se retira con aviso.
+- No hay sincronización del carrito con la cuenta ni checkout en esta fase.
 
 ## Criterios de aceptación
 
@@ -106,17 +134,33 @@ model Product {
 - [x] Cada tarjeta incluye imagen, nombre, categoría, precio y stock.
 - [x] Los filtros por categoría actualizan el listado y marcan la opción activa.
 - [x] Un producto con stock 0 muestra «Agotado» y el botón deshabilitado.
-- [x] El botón «Añadir al carrito» informa de que el carrito llega en la próxima tarea.
+- [x] El botón «Añadir al carrito» está integrado con el carrito local de la Tarea 3.
 - [x] La cabecera y el hero enlazan al catálogo.
 - [x] El seed incluye seis productos demo, uno de ellos agotado.
 - [x] Los tests de filtros y textos de stock pasan.
 - [x] `typecheck`, `lint` y `build` pasan.
 
+### Tarea 3
+
+- [x] El icono de cabecera muestra el total de unidades y enlaza a `/carrito`.
+- [x] Añadir desde el catálogo actualiza el contador y muestra confirmación.
+- [x] El carrito persiste tras recargar la página.
+- [x] `/carrito` muestra producto, precio unitario, cantidad, subtotal y total.
+- [x] Los botones `+`/`-` respetan el stock y el mínimo de una unidad.
+- [x] Se pueden eliminar líneas y se muestra el estado vacío.
+- [x] Precios y stock se revalidan en servidor; LocalStorage solo guarda IDs y cantidades.
+- [x] Los productos agotados, inactivos o inexistentes se retiran con aviso.
+- [x] Los datos corruptos o de una versión anterior se descartan sin romper la página.
+- [x] «Finalizar compra» está deshabilitado con nota de la siguiente tarea.
+- [x] Tests, `typecheck`, `lint` y `build` pasan.
+
 ## Fuera de alcance
 
 - Página de detalle de producto.
-- Carrito, pedidos y pasarela de pago.
-- Descuento automático de stock al vender.
+- Checkout, pedidos y pasarela de pago.
+- Descuento o reserva automática de stock al vender.
+- Sincronización del carrito con la cuenta al iniciar sesión.
+- Cupones, envíos e impuestos.
 - Subida de imágenes.
 - Gestión de categorías desde el panel.
 - Slug, SKU, buscador y paginación.
