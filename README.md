@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `139 tests`
+`Fase 1 completada` · `Fase 2 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `183 tests`
 
 ## Capturas
 
@@ -44,7 +44,7 @@ SoftHard A&L es una aplicación full stack que cubre el ciclo completo de una re
 3. El encargado revisa la solicitud, emite un presupuesto y gestiona su estado.
 4. El cliente acepta o rechaza el presupuesto dentro del plazo y ve el importe final que le corresponde.
 
-La Fase 2 ya está en marcha: el catálogo público, el panel interno de productos y el carrito local están disponibles. La ficha de detalle y los pedidos llegan en las siguientes tareas.
+La Fase 2 ya está en marcha: el catálogo público, el panel interno de productos, el carrito local y el checkout con historial de pedidos están disponibles. La ficha de detalle de producto llega en una tarea posterior.
 
 ## Funcionalidad
 
@@ -82,7 +82,11 @@ La Fase 2 ya está en marcha: el catálogo público, el panel interno de product
 - Borrado lógico: el producto se archiva y deja de mostrarse en el catálogo.
 - Solo `encargado` y `admin` acceden al panel; `cliente` y `trabajador` son redirigidos.
 - Seis productos de demostración creados por el seed, uno de ellos agotado.
-- Checkout deshabilitado: la realización de pedidos llega en la siguiente tarea.
+- Checkout desde `/carrito`: los visitantes inician sesión y vuelven al carrito sin perder productos; los clientes crean un pedido con el total calculado en servidor.
+- El stock se descuenta en una transacción atómica. Si una línea no tiene existencias, no se crea el pedido y el carrito se ajusta al stock real.
+- Clave de idempotencia por usuario para evitar pedidos duplicados por doble clic o reintentos.
+- Página de éxito/detalle en `/app/pedidos/[id]` e historial en `/app/pedidos`, filtrado por propietario.
+- Los pedidos nacen en estado `pendiente`; la pasarela de pago y la gestión administrativa de pedidos quedan para fases posteriores.
 
 ## Stack tecnológico
 
@@ -214,23 +218,26 @@ src/
   app/
     (public)/              landing, catálogo y carrito
     (auth)/                login y registro
-    app/                   área del cliente
+    app/                   área del cliente (solicitudes y pedidos)
     admin/                 panel interno
     api/auth/              handler de Auth.js
   components/
     site/                  landing, cabecera y catálogo público
     cart/                  provider, contador y vista del carrito
+    orders/                badge de estado de pedido
     service-requests/      solicitudes, presupuestos y decisión
     admin/                 solicitudes y CRUD de productos
   lib/
     auth.ts, authz.ts      autenticación y permisos
+    navigation.ts          callback interno seguro tras login/registro
+    orders.ts              estados, tipos y cálculo puro de pedidos
     quotes.ts              reglas puras de importes y expiración
     products.ts            categorías y tipos del catálogo
     catalog.ts             filtros y textos de stock del catálogo público
     cart.ts                persistencia, stock e importes del carrito
     validations/           esquemas Zod
   server/
-    actions/               Server Actions (mutaciones y lectura del carrito)
+    actions/               Server Actions (mutaciones, carrito y checkout)
     data/                  acceso a datos con control de propiedad
 prisma/
   schema.prisma
@@ -257,10 +264,10 @@ La expiración es **perezosa**: no hay cron. Al leer una solicitud se comprueba 
 ### Carrito local con precios de servidor
 
 El carrito de la Fase 2 se guarda en **LocalStorage** bajo la clave versionada
-`softhard-carrito-v1`, porque todavía no hay pedidos ni cuentas implicadas y así
-el visitante puede comprar sin registrarse. Guardar el carrito en base de datos
-obligaría a crear un carrito anónimo, limpiar carritos huérfanos y sincronizarlo
-al iniciar sesión: complejidad que no aporta valor en esta tarea.
+`softhard-carrito-v1` para que el visitante pueda montar su compra sin cuenta. El
+checkout exige iniciar sesión, pero guardar el carrito en base de datos obligaría a
+crear un carrito anónimo, limpiar carritos huérfanos y sincronizarlo al iniciar
+sesión: complejidad que no aporta valor en esta tarea.
 
 La decisión clave es que el navegador **solo almacena `productId` y `quantity`**.
 Nunca guarda precios, nombres ni stock: esos datos podrían quedar obsoletos o ser
@@ -270,24 +277,45 @@ total se calculan en **céntimos** con funciones puras.
 
 El carrito se reconcilia con el servidor: los productos inexistentes, inactivos o
 agotados se retiran con un aviso, y las cantidades superiores al stock se ajustan.
-El contador de cabecera suma unidades, no líneas. El checkout, los pedidos, el
-descuento de stock y la sincronización con la cuenta quedan fuera de esta fase.
+El contador de cabecera suma unidades, no líneas. El checkout exige cuenta, pero
+el carrito sigue siendo local: iniciar sesión no lo sincroniza con la base de datos.
+
+### Checkout atómico e idempotente
+
+Crear un pedido implica tres escrituras que deben ocurrir juntas: descontar stock,
+crear `Order` y crear `OrderItem`. La operación se ejecuta dentro de una única
+transacción de Prisma. Cada stock se descuenta con un `updateMany` condicional
+(`active = true` y `stock >= cantidad`), ordenado por id de producto para reducir
+bloqueos cruzados. Si otra compra se lleva la última unidad, la condición falla,
+la transacción se revierte y no queda un pedido a medias.
+
+El cliente genera una clave UUID por intento de compra. La tabla `orders` tiene una
+restricción única `(userId, idempotencyKey)`: un doble clic, un reintento de red o
+una respuesta perdida devuelven el pedido ya creado en lugar de duplicarlo. Si dos
+peticiones compiten, solo una inserta; la otra captura la violación de unicidad y
+consulta el pedido ganador.
+
+El total y los precios unitarios se calculan en servidor a partir de los productos
+actuales. `OrderItem.price` congela el precio del momento de la compra para que un
+cambio posterior del catálogo no altere el histórico.
 
 ### Seguridad y permisos
 
 - **Contraseñas** con `bcrypt` (coste 12). El registro público siempre asigna el rol `cliente`; Zod descarta cualquier `role` inyectado.
 - **Middleware** en el edge para separar `/app` (cualquier sesión) de `/admin` (solo `encargado` y `admin`).
 - **Revalidación del rol en cada Server Action** (`requerirStaff`): el JWT no se considera prueba suficiente.
-- **Propiedad de los datos**: las consultas del cliente filtran por `{ id, clientId }`. Un identificador ajeno devuelve 404, sin revelar si existe.
-- **Importes y estados** se validan en servidor; los formularios solo envían la intención (`aceptar`, `rechazar`).
+- **Propiedad de los datos**: las consultas del cliente filtran por `{ id, clientId }`; los pedidos filtran por `{ id, userId }`. Un identificador ajeno devuelve 404, sin revelar si existe.
+- **Importes y estados** se validan en servidor; los formularios solo envían la intención (`aceptar`, `rechazar`) y el checkout nunca envía precios ni totales.
+- **Callback seguro**: tras login o registro solo se acepta una ruta interna; se rechazan URLs externas, protocolos peligrosos y el acceso de un cliente al panel.
 
 ### Tests
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **139 tests** en 15 archivos (`npm run test`), incluidos los de validación, acciones, filtros del catálogo y lógica del carrito.
+- **183 tests** en 21 archivos (`npm run test`), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia y callback seguro.
+- Los tests de la transacción usan Prisma mockeado; el flujo real de checkout, stock y pedidos se verificó manualmente contra PostgreSQL.
 - TypeScript estricto y ESLint en cada cambio.
-- Pendiente como deuda: tests de integración con base de datos y de los flujos completos de permisos.
+- Pendiente como deuda: tests de integración automáticos con base de datos y de los flujos completos de permisos.
 
 ### Server Components y Server Actions
 
@@ -318,9 +346,10 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] Productos demo en el seed y tests de validación/acciones.
 - [x] Catálogo público con filtros por categoría y estados de stock.
 - [x] Carrito local con contador, cantidades, total y revalidación de precios/stock.
+- [x] Checkout autenticado, pedidos, descuento atómico de stock e idempotencia.
+- [x] Historial y detalle de pedidos del cliente.
 - [ ] Fichas de producto.
-- [ ] Realización de pedidos y checkout.
-- [ ] Gestión básica de stock.
+- [ ] Gestión administrativa de pedidos y stock.
 - [ ] Integración del catálogo con el área de cliente.
 
 ### Fase 3 — futuro
@@ -331,11 +360,11 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 
 ## Fuera de alcance
 
-Estas funciones quedan fuera del alcance actual (Fase 1, catálogo y carrito local de la Fase 2):
+Estas funciones quedan fuera del alcance actual (Fase 1 y tienda de la Fase 2):
 
 - Pagos reales y pasarela de pago.
-- Pedidos y checkout.
-- Descuento o reserva automática de stock al vender.
+- Gestión administrativa de pedidos, cancelación y reposición de stock.
+- Reserva de stock al añadir al carrito o descuento antes de crear el pedido.
 - Sincronización del carrito con la cuenta al iniciar sesión.
 - Cupones, envíos e impuestos.
 - Tickets internos y fichaje de horas.
@@ -346,7 +375,7 @@ Estas funciones quedan fuera del alcance actual (Fase 1, catálogo y carrito loc
 ## Documentación
 
 - [`docs/specs/fase-1.md`](docs/specs/fase-1.md) — objetivos, historias de usuario y criterios de aceptación de la Fase 1.
-- [`docs/specs/fase-2.md`](docs/specs/fase-2.md) — alcance del catálogo, el carrito y criterios de la Fase 2.
+- [`docs/specs/fase-2.md`](docs/specs/fase-2.md) — alcance del catálogo, el carrito, el checkout y criterios de la Fase 2.
 - [`AGENTS.md`](AGENTS.md) — convenciones y reglas de trabajo del repositorio.
 - [`memory.md`](memory.md) — estado y notas de continuidad del proyecto.
 

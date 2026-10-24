@@ -1,9 +1,10 @@
-# Spec Fase 2 — Catálogo, productos y carrito
+# Spec Fase 2 — Catálogo, carrito y pedidos
 
 ## Objetivo
 
-Construir la base del e-commerce: catálogo público, gestión interna de productos y
-carrito local. La ficha de detalle y los pedidos llegan en tareas posteriores.
+Construir el flujo de compra de la tienda: catálogo público, gestión interna de
+productos, carrito local, checkout transaccional, historial de pedidos y página de
+éxito. La ficha de detalle de producto queda para una tarea posterior.
 
 ## Alcance de la Tarea 1
 
@@ -40,11 +41,31 @@ carrito local. La ficha de detalle y los pedidos llegan en tareas posteriores.
   superiores al stock se ajustan con aviso.
 - Botón «Finalizar compra» deshabilitado; el checkout no entra en esta tarea.
 
+## Alcance de la Tarea 4
+
+- Checkout desde `/carrito` para usuarios autenticados.
+- Los visitantes van a `/login?callbackUrl=/carrito`; el callback se conserva
+  también al pasar por el registro y se descarta si no es una ruta interna.
+- Creación de `Order` y `OrderItem` con precio unitario congelado y total calculado
+  en servidor.
+- Descuento de stock atómico mediante una transacción con actualizaciones
+  condicionales; si una línea no tiene stock, se revierte el pedido completo.
+- Clave de idempotencia UUID por usuario para que un doble clic o un reintento de
+  red devuelva el pedido ya creado, no uno nuevo.
+- Carrito vaciado solo después de crear el pedido.
+- Página de éxito y detalle en `/app/pedidos/[id]` y historial en `/app/pedidos`.
+- Consultas filtradas por propietario: un pedido ajeno devuelve 404.
+- Estado inicial `pendiente`; el resto del enum queda preparado para la gestión
+  administrativa posterior.
+- Sin pasarela de pago y sin panel de administración de pedidos en esta tarea.
+
 ## Actores
 
 - **Encargado / admin**: gestiona el catálogo desde el panel.
-- **Cliente / trabajador**: sin acceso al panel de productos.
-- **Visitante**: consulta el catálogo público sin registrarse.
+- **Cliente / trabajador**: sin acceso al panel de productos; puede comprar y
+  consultar sus propios pedidos.
+- **Visitante**: consulta el catálogo y usa el carrito local, pero debe iniciar
+  sesión para finalizar la compra.
 
 ## Historias de usuario
 
@@ -63,6 +84,15 @@ carrito local. La ficha de detalle y los pedidos llegan en tareas posteriores.
 12. Como visitante quiero revisar el precio unitario, la cantidad y el total.
 13. Como visitante quiero ajustar cantidades o eliminar productos antes de comprar.
 14. Como visitante quiero conservar el carrito si recargo la página.
+15. Como visitante quiero que al finalizar la compra se me pida iniciar sesión y
+    volver al carrito sin perder los productos.
+16. Como cliente quiero crear un pedido y que el stock se descuente una sola vez.
+17. Como cliente quiero ver una página de éxito con el resumen de mi compra.
+18. Como cliente quiero consultar el historial y el detalle de mis pedidos.
+19. Como cliente quiero que, si un producto se agota mientras compro, se me avise
+    y no se cree un pedido incompleto.
+20. Como cliente quiero que un doble clic o un reintento no duplique el pedido.
+21. Como cliente quiero que nadie pueda ver mis pedidos cambiando la URL.
 
 ## Modelo
 
@@ -91,6 +121,43 @@ model Product {
   @@index([active])
   @@map("products")
 }
+
+enum OrderStatus {
+  pendiente
+  pagado
+  entregado
+  cancelado
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  total          Decimal     @db.Decimal(10, 2)
+  status         OrderStatus @default(pendiente)
+  idempotencyKey String?
+  items          OrderItem[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+
+  @@unique([orderId, productId])
+  @@index([productId])
+  @@map("order_items")
+}
 ```
 
 ## Reglas de negocio
@@ -113,7 +180,33 @@ model Product {
 - El contador suma unidades, no líneas. Por encima de 99 se muestra `99+`.
 - Añadir respeta el stock y el carrito no permite superar el stock actual.
 - Un producto inexistente, inactivo o con stock 0 se retira con aviso.
-- No hay sincronización del carrito con la cuenta ni checkout en esta fase.
+- El carrito no se sincroniza con la cuenta; el checkout de la Tarea 4 exige
+  iniciar sesión y conserva los productos locales.
+
+### Pedidos
+
+- Solo un usuario autenticado puede crear un pedido; la acción vuelve a comprobar
+  la sesión en servidor.
+- El servidor relee precio, stock y estado de cada producto. Nunca confía en
+  precios ni totales enviados por el navegador.
+- El precio unitario se copia a `OrderItem` y el total se guarda como
+  `Decimal(10,2)`; un cambio futuro de precio no altera pedidos históricos.
+- Los importes se calculan en céntimos y se rechaza un total que no quepa en
+  `Decimal(10,2)`.
+- Stock y pedido se escriben en una única transacción. Cada producto se descuenta
+  con un `updateMany` condicional (`active = true` y `stock >= cantidad`) y las
+  líneas se ordenan por id para reducir bloqueos cruzados.
+- Si cualquier línea falla, se revierte la transacción completa y no se crea el
+  pedido; el carrito se reconcilia con el stock actual.
+- La clave de idempotencia es un UUID único por usuario. Un reintento con la misma
+  clave devuelve el pedido existente. Si dos peticiones compiten, la restricción
+  única resuelve la carrera y la perdedora consulta el pedido ganador.
+- Los pedidos nuevos nacen en `pendiente`. `pagado`, `entregado` y `cancelado`
+  quedan preparados para tareas posteriores.
+- El carrito solo se vacía después de recibir un pedido creado correctamente.
+- El historial y el detalle filtran por `userId`; un identificador ajeno devuelve
+  404 sin revelar si existe.
+- No hay pasarela de pago: el pedido queda pendiente de gestión manual.
 
 ## Criterios de aceptación
 
@@ -154,13 +247,27 @@ model Product {
 - [x] «Finalizar compra» está deshabilitado con nota de la siguiente tarea.
 - [x] Tests, `typecheck`, `lint` y `build` pasan.
 
+### Tarea 4
+
+- [x] Un visitante que pulsa «Finalizar compra» va a login con retorno a `/carrito`.
+- [x] El callback seguro se conserva al pasar por el registro y se descarta si es externo.
+- [x] Un cliente autenticado crea `Order` y `OrderItem` desde el carrito.
+- [x] El stock se descuenta de forma atómica y una compra concurrente sin stock no crea pedido.
+- [x] El total y los precios unitarios se calculan y congelan en servidor.
+- [x] La idempotencia evita pedidos duplicados por doble clic o reintento.
+- [x] El carrito se vacía solo tras el éxito y se conserva si hay error.
+- [x] Existe página de éxito/detalle y un historial en `/app/pedidos`.
+- [x] Un pedido de otro usuario devuelve 404.
+- [x] Tests de cálculo, stock, validación, acción, idempotencia y callback; `typecheck`, `lint` y `build` pasan.
+
 ## Fuera de alcance
 
 - Página de detalle de producto.
-- Checkout, pedidos y pasarela de pago.
-- Descuento o reserva automática de stock al vender.
+- Pasarela de pago y cobro real.
+- Gestión administrativa de pedidos, cambios manuales de estado, cancelación y
+  reposición de stock.
 - Sincronización del carrito con la cuenta al iniciar sesión.
-- Cupones, envíos e impuestos.
+- Cupones, envíos, impuestos y facturación.
 - Subida de imágenes.
 - Gestión de categorías desde el panel.
 - Slug, SKU, buscador y paginación.
