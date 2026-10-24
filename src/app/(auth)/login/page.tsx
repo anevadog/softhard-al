@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LoginForm } from "@/components/auth/login-form";
+import { rutaInternaSegura } from "@/lib/navigation";
 
 export const metadata = {
   title: "Iniciar sesión",
@@ -9,9 +10,16 @@ export const metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ registrado?: string }>;
+  searchParams: Promise<{
+    registrado?: string;
+    callbackUrl?: string | string[];
+  }>;
 }) {
-  const { registrado } = await searchParams;
+  const { registrado, callbackUrl: callbackUrlRaw } = await searchParams;
+  const callbackUrl = rutaInternaSegura(callbackUrlRaw) ?? undefined;
+  const registroHref = callbackUrl
+    ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}`
+    : "/register";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
@@ -25,11 +33,11 @@ export default async function LoginPage({
           </p>
         ) : null}
 
-        <LoginForm />
+        <LoginForm callbackUrl={callbackUrl} />
 
         <p className="mt-5 text-center text-sm text-slate-600">
           ¿No tienes cuenta?{" "}
-          <Link href="/register" className="font-medium text-slate-900 underline">
+          <Link href={registroHref} className="font-medium text-slate-900 underline">
             Regístrate
           </Link>
         </p>

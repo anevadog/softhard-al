@@ -5,11 +5,15 @@ import { useActionState } from "react";
 import { loginUser } from "@/server/actions/auth";
 import { AUTH_FORM_STATE_INICIAL } from "@/server/actions/auth-state";
 
-export function LoginForm() {
+export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const [state, formAction, pending] = useActionState(loginUser, AUTH_FORM_STATE_INICIAL);
 
   return (
     <form action={formAction} className="space-y-4" noValidate>
+      {callbackUrl ? (
+        <input type="hidden" name="callbackUrl" value={callbackUrl} />
+      ) : null}
+
       {state.status === "error" && state.message ? (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
           {state.message}

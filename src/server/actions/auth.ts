@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { destinoTrasLogin, rutaInternaSegura } from "@/lib/navigation";
 import { hashPassword } from "@/lib/password";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 import type { AuthFormState } from "@/server/actions/auth-state";
@@ -70,7 +71,14 @@ export async function registerUser(
     };
   }
 
-  redirect("/login?registrado=1");
+  const callbackUrl = rutaInternaSegura(formData.get("callbackUrl"));
+  const params = new URLSearchParams({ registrado: "1" });
+
+  if (callbackUrl) {
+    params.set("callbackUrl", callbackUrl);
+  }
+
+  redirect(`/login?${params.toString()}`);
 }
 
 export async function loginUser(
@@ -106,5 +114,5 @@ export async function loginUser(
     select: { role: true },
   });
 
-  redirect(user && user.role !== "cliente" ? "/admin" : "/app");
+  redirect(destinoTrasLogin(formData.get("callbackUrl"), user?.role));
 }
