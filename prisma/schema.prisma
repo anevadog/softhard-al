@@ -49,6 +49,15 @@ enum TimeSlot {
   indiferente
 }
 
+/// Categorías del catálogo. Lista cerrada para la Fase 2.
+enum ProductCategory {
+  ordenadores
+  portatiles
+  impresoras
+  accesorios
+  consumibles
+}
+
 /// Estado de la decisión del cliente sobre el presupuesto.
 enum QuoteStatus {
   pendiente
@@ -133,6 +142,26 @@ model Quote {
 
   @@index([status, expiresAt])
   @@map("quotes")
+}
+
+/// Producto del catálogo. `active` implementa borrado lógico: los productos
+/// archivados desaparecen de la tienda y del panel, pero conservan su historial.
+model Product {
+  id          String          @id @default(cuid())
+  name        String
+  description String          @db.Text
+  price       Decimal         @db.Decimal(10, 2)
+  stock       Int             @default(0)
+  imageUrl    String?
+  category    ProductCategory
+  active      Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([active])
+  @@map("products")
 }
 
 /// Configuración de negocio. Fila única: id fijo = 1.
