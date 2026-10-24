@@ -4,8 +4,8 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
 - **Fase 1 completada (tareas 1–8)**.
-- **Fase 2, tareas 1–3 completadas**: CRUD en `/admin/productos`, catálogo `/productos` y carrito local `/carrito`.
-- Siguiente: ficha de producto, pedidos y checkout. Specs en `docs/specs/fase-1.md` y `fase-2.md`.
+- **Fase 2, tareas 1–4 completadas**: CRUD `/admin/productos`, catálogo `/productos`, carrito local `/carrito` y checkout/pedidos.
+- Commits locales de la Tarea 4 creados; **pendiente push**. Siguiente: ficha de producto y gestión administrativa de pedidos/stock. Specs en `docs/specs/fase-1.md` y `fase-2.md`.
 
 ## Stack efectivo
 - Node 24.22.1 LTS · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7
@@ -19,32 +19,32 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - `auth.config.ts` edge-safe; `auth.ts` añade Credentials. JWT 7 días; rol en token y `/admin` **revalida en BD**.
 - `authz.ts` decide (`puedeAcceder`): `/app` cualquier sesión, `/admin` solo staff; middleware + layouts.
 - Registro público siempre `cliente`; bcrypt ≤ 72 bytes; demo `@demo.local` con `Demo1234!`.
+- `navigation.ts` valida callback interno tras login/registro; rechaza URLs externas y el panel para clientes.
 
 ## Solicitudes y panel
 - Landing en `(public)`; copy en `src/lib/site-content.ts`; validación Zod, datos y acciones en `src/lib/validations/` y `src/server/`.
 - `clientId` sale de la sesión; Zod descarta campos inyectados. Formulario controlado con `onSubmit` + `useTransition`.
 - `/app/solicitudes` filtra por cliente; `/admin` redirige a `/admin/solicitudes`; `requerirStaff()` revalida rol en BD.
 - Presupuesto: X e N de `Config`; X copiada en `diagnosticFee`; `finalAmount = presupuesto − X`; rechazo → `X`.
-- Un presupuesto por solicitud; importes en céntimos y guardados como cadena.
-- Cliente decide si está `pendiente`, la solicitud sigue abierta y no venció; expiración perezosa sin cron.
+- Un presupuesto por solicitud; importes en céntimos; expiración perezosa sin cron.
 
-## Productos
-- Enum fijo `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl` opcional y `active` lógico; datos y acciones con `requerirStaff()` en `src/server/`.
-- Catálogo público: `listarProductosPublicos` filtra `active`, ordena `createdAt desc` y acepta categoría; filtros por URL en `src/lib/catalog.ts`.
-- Stock: 0 = «Agotado» y botón deshabilitado; 1–3 avisan; ≥4 indican unidades. Carrito local en `/carrito` con clave `softhard-carrito-v1`, solo IDs/cantidades, contador, total en céntimos y checkout deshabilitado.
-- Formulario: precio coma/punto, URL http(s) o `null`, placeholder; seed idempotente con 6 productos (uno agotado).
-- Tests: **139** en 15 archivos (9 carrito + 3 acción de lectura nuevos).
+## Productos y carrito
+- Enum fijo `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl` opcional y `active` lógico; datos/acciones con `requerirStaff()`.
+- Catálogo público filtra `active`, ordena `createdAt desc`, acepta categoría; filtros por URL en `src/lib/catalog.ts`.
+- Stock: 0 = «Agotado»; 1–3 avisan; ≥4 indican unidades. Seed idempotente con 6 productos (uno agotado).
+- Carrito local `softhard-carrito-v1`: solo IDs/cantidades, contador, total en céntimos, revalidación de precios/stock y ajuste con aviso.
+- Formulario de producto: precio coma/punto, URL http(s) o `null`, placeholder; borrado lógico.
 
-## Decisiones
-- Roles: cliente, trabajador, encargado, admin. En Fase 1 `admin` = `encargado`.
-- Pagos simulados, datos ficticios; `build` sin Turbopack (`dev` con Turbopack); tema claro fijo.
+## Pedidos
+- `OrderStatus`: `pendiente`, `pagado`, `entregado`, `cancelado`; los pedidos nuevos nacen `pendiente`.
+- `crearPedidoCliente`: precios congelados en `OrderItem`, total `Decimal(10,2)`, transacción con `updateMany` condicional por producto ordenado por id; si falla, rollback completo.
+- `idempotencyKey` UUID único por usuario: doble clic/reintento devuelve el pedido existente. Carrito se vacía solo tras éxito.
+- `/app/pedidos` historial y `/app/pedidos/[id]` detalle/éxito; filtran `userId`, pedido ajeno → 404. Visitante → `/login?callbackUrl=/carrito`.
+- Sin pasarela de pago ni panel admin de pedidos en esta tarea.
 
-## Próximos pasos
-- [x] Fase 1 completa (tareas 1–8) y README.
-- [x] Fase 2, tarea 1: catálogo interno de productos.
-- [x] Fase 2, tarea 2: catálogo público, filtros y estados de stock.
-- [x] Fase 2, tarea 3: carrito local, contador, cantidades y total.
-- [ ] Fase 2: detalle de producto, pedidos y checkout.
-- [ ] Deuda: rate limiting en login, emails y tests de integración.
-## Aprendizajes / notas
-- Prisma 7: driver adapter y `output` obligatorios; `migrate dev` puede no regenerar el cliente. Auth.js v5: augmentar `@auth/core/jwt` y `next-auth/jwt`.
+## Tests y próximos pasos
+- **183 tests** en 21 archivos; `typecheck`, `lint` y `build` limpios. QA manual contra PostgreSQL: stock 12→10 y 20→19, conflicto de stock, doble clic e historial.
+- [x] Fase 1 y Fase 2 tareas 1–4; commits locales creados.
+- [ ] Push final; después ficha de producto, gestión administrativa de pedidos y stock.
+- [ ] Deuda: rate limiting en login, emails y tests de integración con BD.
+- Aprendizajes: Prisma 7 exige driver adapter y `output`; `migrate dev` puede no regenerar el cliente. Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.
