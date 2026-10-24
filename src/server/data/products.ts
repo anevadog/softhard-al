@@ -84,6 +84,25 @@ export async function listarProductosPublicos(
   return productos.map(aProductoPublico);
 }
 
+/** Productos activos que necesita el carrito para refrescar precio y stock. */
+export async function listarProductosPorIds(
+  ids: string[],
+): Promise<ProductoPublico[]> {
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const productos = await prisma.product.findMany({
+    where: {
+      id: { in: ids },
+      active: true,
+    },
+    select: PRODUCTO_PUBLICO_SELECT,
+  });
+
+  return productos.map(aProductoPublico);
+}
+
 export async function listarProductosAdmin(): Promise<ProductoAdmin[]> {
   const productos = await prisma.product.findMany({
     where: { active: true },

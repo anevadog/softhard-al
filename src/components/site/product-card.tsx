@@ -62,7 +62,12 @@ export function ProductCard({ producto }: { producto: ProductoPublico }) {
         </div>
 
         <div className="mt-4">
-          <AddToCartButton agotado={agotado} nombre={producto.name} />
+          <AddToCartButton
+            productId={producto.id}
+            agotado={agotado}
+            nombre={producto.name}
+            stock={producto.stock}
+          />
         </div>
       </div>
     </article>
