@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `127 tests`
+`Fase 1 completada` · `Fase 2 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `139 tests`
 
 ## Capturas
 
@@ -44,7 +44,7 @@ SoftHard A&L es una aplicación full stack que cubre el ciclo completo de una re
 3. El encargado revisa la solicitud, emite un presupuesto y gestiona su estado.
 4. El cliente acepta o rechaza el presupuesto dentro del plazo y ve el importe final que le corresponde.
 
-La Fase 2 ya está en marcha: el catálogo público y el panel interno de productos están disponibles. La ficha de detalle, el carrito y los pedidos llegan en las siguientes tareas.
+La Fase 2 ya está en marcha: el catálogo público, el panel interno de productos y el carrito local están disponibles. La ficha de detalle y los pedidos llegan en las siguientes tareas.
 
 ## Funcionalidad
 
@@ -74,12 +74,15 @@ La Fase 2 ya está en marcha: el catálogo público y el panel interno de produc
 
 - Catálogo público en `/productos`, accesible sin iniciar sesión.
 - Filtros por categoría; cada tarjeta muestra precio, stock y aviso de producto agotado.
-- Botón «Añadir al carrito» informativo; el carrito real llega en la próxima tarea.
+- Carrito en `/carrito` con persistencia en LocalStorage, contador de unidades en la cabecera, control de cantidades, subtotales y total.
+- El carrito revalida precios y stock en servidor, respeta la disponibilidad y retira productos agotados o inactivos con aviso.
+- El navegador solo guarda `productId` y `quantity`; nunca precios ni copias del producto.
 - Catálogo interno en `/admin/productos` con listado, precio, stock y categoría.
 - Creación y edición de productos con validación Zod en servidor.
 - Borrado lógico: el producto se archiva y deja de mostrarse en el catálogo.
 - Solo `encargado` y `admin` acceden al panel; `cliente` y `trabajador` son redirigidos.
 - Seis productos de demostración creados por el seed, uno de ellos agotado.
+- Checkout deshabilitado: la realización de pedidos llega en la siguiente tarea.
 
 ## Stack tecnológico
 
@@ -209,13 +212,14 @@ npx prisma studio        # explora la base de datos
 ```text
 src/
   app/
-    (public)/              landing y catálogo público
+    (public)/              landing, catálogo y carrito
     (auth)/                login y registro
     app/                   área del cliente
     admin/                 panel interno
     api/auth/              handler de Auth.js
   components/
     site/                  landing, cabecera y catálogo público
+    cart/                  provider, contador y vista del carrito
     service-requests/      solicitudes, presupuestos y decisión
     admin/                 solicitudes y CRUD de productos
   lib/
@@ -223,9 +227,10 @@ src/
     quotes.ts              reglas puras de importes y expiración
     products.ts            categorías y tipos del catálogo
     catalog.ts             filtros y textos de stock del catálogo público
+    cart.ts                persistencia, stock e importes del carrito
     validations/           esquemas Zod
   server/
-    actions/               Server Actions (mutaciones)
+    actions/               Server Actions (mutaciones y lectura del carrito)
     data/                  acceso a datos con control de propiedad
 prisma/
   schema.prisma
@@ -249,6 +254,25 @@ Los importes se calculan en **céntimos** con funciones puras y se persisten com
 
 La expiración es **perezosa**: no hay cron. Al leer una solicitud se comprueba `expiresAt` y, si corresponde, se actualizan el presupuesto a `expirado` y la solicitud a `expirada` de forma idempotente.
 
+### Carrito local con precios de servidor
+
+El carrito de la Fase 2 se guarda en **LocalStorage** bajo la clave versionada
+`softhard-carrito-v1`, porque todavía no hay pedidos ni cuentas implicadas y así
+el visitante puede comprar sin registrarse. Guardar el carrito en base de datos
+obligaría a crear un carrito anónimo, limpiar carritos huérfanos y sincronizarlo
+al iniciar sesión: complejidad que no aporta valor en esta tarea.
+
+La decisión clave es que el navegador **solo almacena `productId` y `quantity`**.
+Nunca guarda precios, nombres ni stock: esos datos podrían quedar obsoletos o ser
+manipulados. Al abrir `/carrito`, una **Server Action pública** recibe los IDs y
+consulta Prisma para devolver el precio y el stock actuales. Los subtotales y el
+total se calculan en **céntimos** con funciones puras.
+
+El carrito se reconcilia con el servidor: los productos inexistentes, inactivos o
+agotados se retiran con un aviso, y las cantidades superiores al stock se ajustan.
+El contador de cabecera suma unidades, no líneas. El checkout, los pedidos, el
+descuento de stock y la sincronización con la cuenta quedan fuera de esta fase.
+
 ### Seguridad y permisos
 
 - **Contraseñas** con `bcrypt` (coste 12). El registro público siempre asigna el rol `cliente`; Zod descarta cualquier `role` inyectado.
@@ -261,7 +285,7 @@ La expiración es **perezosa**: no hay cron. Al leer una solicitud se comprueba 
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **127 tests** en 13 archivos (`npm run test`), incluidos los de validación, acciones y filtros del catálogo.
+- **139 tests** en 15 archivos (`npm run test`), incluidos los de validación, acciones, filtros del catálogo y lógica del carrito.
 - TypeScript estricto y ESLint en cada cambio.
 - Pendiente como deuda: tests de integración con base de datos y de los flujos completos de permisos.
 
@@ -293,8 +317,9 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] CRUD interno de productos en `/admin/productos`.
 - [x] Productos demo en el seed y tests de validación/acciones.
 - [x] Catálogo público con filtros por categoría y estados de stock.
+- [x] Carrito local con contador, cantidades, total y revalidación de precios/stock.
 - [ ] Fichas de producto.
-- [ ] Carrito y realización de pedidos.
+- [ ] Realización de pedidos y checkout.
 - [ ] Gestión básica de stock.
 - [ ] Integración del catálogo con el área de cliente.
 
@@ -306,10 +331,13 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 
 ## Fuera de alcance
 
-Estas funciones quedan fuera del alcance actual (Fase 1 y catálogo público de la Fase 2):
+Estas funciones quedan fuera del alcance actual (Fase 1, catálogo y carrito local de la Fase 2):
 
 - Pagos reales y pasarela de pago.
-- E-commerce completo (carrito, pedidos y stock automático).
+- Pedidos y checkout.
+- Descuento o reserva automática de stock al vender.
+- Sincronización del carrito con la cuenta al iniciar sesión.
+- Cupones, envíos e impuestos.
 - Tickets internos y fichaje de horas.
 - Contabilidad y facturación.
 - Emails automáticos y notificaciones.
@@ -318,7 +346,7 @@ Estas funciones quedan fuera del alcance actual (Fase 1 y catálogo público de 
 ## Documentación
 
 - [`docs/specs/fase-1.md`](docs/specs/fase-1.md) — objetivos, historias de usuario y criterios de aceptación de la Fase 1.
-- [`docs/specs/fase-2.md`](docs/specs/fase-2.md) — alcance del catálogo y criterios de la Fase 2.
+- [`docs/specs/fase-2.md`](docs/specs/fase-2.md) — alcance del catálogo, el carrito y criterios de la Fase 2.
 - [`AGENTS.md`](AGENTS.md) — convenciones y reglas de trabajo del repositorio.
 - [`memory.md`](memory.md) — estado y notas de continuidad del proyecto.
 

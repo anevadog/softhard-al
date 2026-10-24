@@ -4,8 +4,8 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
 - **Fase 1 completada (tareas 1–8)**.
-- **Fase 2, tareas 1–2 completadas**: CRUD en `/admin/productos` y catálogo público `/productos` con filtros y stock.
-- Siguiente: ficha de producto y carrito. Specs en `docs/specs/fase-1.md` y `fase-2.md`.
+- **Fase 2, tareas 1–3 completadas**: CRUD en `/admin/productos`, catálogo `/productos` y carrito local `/carrito`.
+- Siguiente: ficha de producto, pedidos y checkout. Specs en `docs/specs/fase-1.md` y `fase-2.md`.
 
 ## Stack efectivo
 - Node 24.22.1 LTS · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7
@@ -31,9 +31,9 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 ## Productos
 - Enum fijo `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl` opcional y `active` lógico; datos y acciones con `requerirStaff()` en `src/server/`.
 - Catálogo público: `listarProductosPublicos` filtra `active`, ordena `createdAt desc` y acepta categoría; filtros por URL en `src/lib/catalog.ts`.
-- Stock: 0 = «Agotado» y botón deshabilitado; 1–3 avisan; ≥4 indican unidades. Carrito real pendiente.
+- Stock: 0 = «Agotado» y botón deshabilitado; 1–3 avisan; ≥4 indican unidades. Carrito local en `/carrito` con clave `softhard-carrito-v1`, solo IDs/cantidades, contador, total en céntimos y checkout deshabilitado.
 - Formulario: precio coma/punto, URL http(s) o `null`, placeholder; seed idempotente con 6 productos (uno agotado).
-- Tests: **127** en 13 archivos (14 validación, 11 acciones y 8 de catálogo nuevos).
+- Tests: **139** en 15 archivos (9 carrito + 3 acción de lectura nuevos).
 
 ## Decisiones
 - Roles: cliente, trabajador, encargado, admin. En Fase 1 `admin` = `encargado`.
@@ -43,8 +43,8 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - [x] Fase 1 completa (tareas 1–8) y README.
 - [x] Fase 2, tarea 1: catálogo interno de productos.
 - [x] Fase 2, tarea 2: catálogo público, filtros y estados de stock.
-- [ ] Fase 2: detalle de producto, carrito y pedidos.
+- [x] Fase 2, tarea 3: carrito local, contador, cantidades y total.
+- [ ] Fase 2: detalle de producto, pedidos y checkout.
 - [ ] Deuda: rate limiting en login, emails y tests de integración.
-
 ## Aprendizajes / notas
 - Prisma 7: driver adapter y `output` obligatorios; `migrate dev` puede no regenerar el cliente. Auth.js v5: augmentar `@auth/core/jwt` y `next-auth/jwt`.
