@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `119 tests`
+`Fase 1 completada` · `Fase 2 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `127 tests`
 
 ## Capturas
 
@@ -44,7 +44,7 @@ SoftHard A&L es una aplicación full stack que cubre el ciclo completo de una re
 3. El encargado revisa la solicitud, emite un presupuesto y gestiona su estado.
 4. El cliente acepta o rechaza el presupuesto dentro del plazo y ve el importe final que le corresponde.
 
-La Fase 2 ya está en marcha: empieza por el catálogo interno de productos. La tienda pública, el carrito y los pedidos llegan en las siguientes tareas.
+La Fase 2 ya está en marcha: el catálogo público y el panel interno de productos están disponibles. La ficha de detalle, el carrito y los pedidos llegan en las siguientes tareas.
 
 ## Funcionalidad
 
@@ -72,11 +72,14 @@ La Fase 2 ya está en marcha: empieza por el catálogo interno de productos. La 
 
 ### Fase 2 (en curso)
 
+- Catálogo público en `/productos`, accesible sin iniciar sesión.
+- Filtros por categoría; cada tarjeta muestra precio, stock y aviso de producto agotado.
+- Botón «Añadir al carrito» informativo; el carrito real llega en la próxima tarea.
 - Catálogo interno en `/admin/productos` con listado, precio, stock y categoría.
 - Creación y edición de productos con validación Zod en servidor.
 - Borrado lógico: el producto se archiva y deja de mostrarse en el catálogo.
 - Solo `encargado` y `admin` acceden al panel; `cliente` y `trabajador` son redirigidos.
-- Cinco productos de demostración creados por el seed.
+- Seis productos de demostración creados por el seed, uno de ellos agotado.
 
 ## Stack tecnológico
 
@@ -179,7 +182,7 @@ El seed es idempotente y crea cuatro cuentas con la misma contraseña: **`Demo12
 | `encargado@demo.local` | encargado | `/admin` (solicitudes y productos) |
 | `admin@demo.local` | admin | `/admin` (solicitudes y productos) |
 
-En la Fase 1, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico y **7 días** de validez del presupuesto) y cinco productos de demostración para el catálogo.
+En la Fase 1, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico y **7 días** de validez del presupuesto) y seis productos de demostración para el catálogo.
 
 ## Scripts
 
@@ -206,19 +209,20 @@ npx prisma studio        # explora la base de datos
 ```text
 src/
   app/
-    (public)/              landing pública
+    (public)/              landing y catálogo público
     (auth)/                login y registro
     app/                   área del cliente
     admin/                 panel interno
     api/auth/              handler de Auth.js
   components/
-    site/                  secciones de la landing
+    site/                  landing, cabecera y catálogo público
     service-requests/      solicitudes, presupuestos y decisión
     admin/                 solicitudes y CRUD de productos
   lib/
     auth.ts, authz.ts      autenticación y permisos
     quotes.ts              reglas puras de importes y expiración
     products.ts            categorías y tipos del catálogo
+    catalog.ts             filtros y textos de stock del catálogo público
     validations/           esquemas Zod
   server/
     actions/               Server Actions (mutaciones)
@@ -257,7 +261,7 @@ La expiración es **perezosa**: no hay cron. Al leer una solicitud se comprueba 
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **119 tests** en 12 archivos (`npm run test`), incluidos los de validación y acciones del catálogo.
+- **127 tests** en 13 archivos (`npm run test`), incluidos los de validación, acciones y filtros del catálogo.
 - TypeScript estricto y ESLint en cada cambio.
 - Pendiente como deuda: tests de integración con base de datos y de los flujos completos de permisos.
 
@@ -288,7 +292,8 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] Modelo `Product` y migración.
 - [x] CRUD interno de productos en `/admin/productos`.
 - [x] Productos demo en el seed y tests de validación/acciones.
-- [ ] Catálogo público y fichas de producto.
+- [x] Catálogo público con filtros por categoría y estados de stock.
+- [ ] Fichas de producto.
 - [ ] Carrito y realización de pedidos.
 - [ ] Gestión básica de stock.
 - [ ] Integración del catálogo con el área de cliente.
@@ -301,7 +306,7 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 
 ## Fuera de alcance
 
-Estas funciones quedan fuera del alcance actual (Fase 1 y catálogo interno de la Fase 2):
+Estas funciones quedan fuera del alcance actual (Fase 1 y catálogo público de la Fase 2):
 
 - Pagos reales y pasarela de pago.
 - E-commerce completo (carrito, pedidos y stock automático).
