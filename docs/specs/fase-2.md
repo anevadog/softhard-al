@@ -70,14 +70,14 @@ model Product {
 
 ## Criterios de aceptación
 
-- [ ] La migración crea `products` sin afectar a las tablas existentes.
-- [ ] El seed crea 5 productos demo de forma idempotente.
-- [ ] `/admin/productos` lista productos y muestra precio, stock y categoría.
-- [ ] Se puede crear, editar y borrar un producto.
-- [ ] Solo `encargado` y `admin` acceden al panel y a las acciones.
-- [ ] Los errores de validación se muestran por campo.
-- [ ] Los tests de validación y de las acciones pasan.
-- [ ] `typecheck`, `lint` y `build` pasan.
+- [x] La migración crea `products` sin afectar a las tablas existentes.
+- [x] El seed crea 5 productos demo de forma idempotente.
+- [x] `/admin/productos` lista productos y muestra precio, stock y categoría.
+- [x] Se puede crear, editar y borrar un producto.
+- [x] Solo `encargado` y `admin` acceden al panel y a las acciones.
+- [x] Los errores de validación se muestran por campo.
+- [x] Los tests de validación y de las acciones pasan.
+- [x] `typecheck`, `lint` y `build` pasan.
 
 ## Fuera de alcance
 
