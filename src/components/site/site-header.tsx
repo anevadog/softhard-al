@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CartLink } from "@/components/cart/cart-link";
 import { CpuIcon } from "@/components/site/icons";
 import { MobileNav } from "@/components/site/mobile-nav";
 import { NAV_LINKS } from "@/lib/site-content";
@@ -40,22 +41,26 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-1.5 md:flex">
-          <Link
-            href="/login"
-            className="rounded-lg px-2.5 py-2 text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 sm:text-sm"
-          >
-            Iniciar sesión
-          </Link>
-          <Link
-            href="/register"
-            className="rounded-lg bg-slate-950 px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-slate-800 sm:px-3.5 sm:text-sm"
-          >
-            Registrarse
-          </Link>
-        </div>
+        <div className="flex items-center gap-1.5">
+          <CartLink />
 
-        <MobileNav />
+          <div className="hidden items-center gap-1.5 md:flex">
+            <Link
+              href="/login"
+              className="rounded-lg px-2.5 py-2 text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 sm:text-sm"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/register"
+              className="rounded-lg bg-slate-950 px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-slate-800 sm:px-3.5 sm:text-sm"
+            >
+              Registrarse
+            </Link>
+          </div>
+
+          <MobileNav />
+        </div>
       </div>
     </header>
   );
