@@ -87,6 +87,7 @@ describe("acciones de productos", () => {
       }),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/admin/productos");
+    expect(revalidatePath).toHaveBeenCalledWith("/productos");
     expect(redirect).toHaveBeenCalledWith("/admin/productos?creado=1");
   });
 
@@ -161,6 +162,7 @@ describe("acciones de productos", () => {
     );
     expect(revalidatePath).toHaveBeenCalledWith("/admin/productos");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/productos/prod-1");
+    expect(revalidatePath).toHaveBeenCalledWith("/productos");
     expect(redirect).toHaveBeenCalledWith(
       "/admin/productos?actualizado=1",
     );
@@ -202,6 +204,7 @@ describe("acciones de productos", () => {
 
     expect(archivarProducto).toHaveBeenCalledWith("prod-1");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/productos");
+    expect(revalidatePath).toHaveBeenCalledWith("/productos");
     expect(redirect).toHaveBeenCalledWith("/admin/productos?borrado=1");
   });
 
