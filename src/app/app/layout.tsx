@@ -15,13 +15,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-5">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <Link href="/app" className="text-sm font-semibold text-slate-900">
               SoftHard A&amp;L
             </Link>
 
-            <nav aria-label="Área de cliente" className="flex items-center gap-4 text-sm">
+            <nav
+              aria-label="Área de cliente"
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
+            >
               <Link
                 href="/app"
                 className="hidden text-slate-600 transition-colors hover:text-slate-900 sm:inline"
@@ -33,6 +36,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 className="text-slate-600 transition-colors hover:text-slate-900"
               >
                 Solicitudes
+              </Link>
+              <Link
+                href="/app/pedidos"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Pedidos
               </Link>
               {esStaff(session.user.role) ? (
                 <Link

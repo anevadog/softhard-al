@@ -32,6 +32,7 @@ type CartContextValue = {
     stock: number,
   ) => void;
   eliminar: (productId: string) => void;
+  vaciar: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -95,6 +96,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((actuales) => eliminarProducto(actuales, productId));
   }, []);
 
+  const vaciar = useCallback(() => {
+    // Se borra de forma síncrona para no depender del efecto de persistencia:
+    // al navegar a /app el provider puede desmontarse antes de ejecutarlo.
+    try {
+      window.localStorage.removeItem(CART_STORAGE_KEY);
+    } catch {
+      // Si el navegador bloquea LocalStorage, al menos se vacía la memoria.
+    }
+
+    setItems([]);
+  }, []);
+
   const totalUnidades = useMemo(() => contarUnidades(items), [items]);
 
   const value = useMemo<CartContextValue>(
@@ -105,6 +118,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       agregar,
       actualizarCantidad,
       eliminar,
+      vaciar,
     }),
     [
       items,
@@ -113,6 +127,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       agregar,
       actualizarCantidad,
       eliminar,
+      vaciar,
     ],
   );
 

@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useCart } from "@/components/cart/cart-provider";
@@ -22,20 +23,42 @@ import {
   type ProductoPublico,
 } from "@/lib/products";
 import { obtenerProductosCarritoAction } from "@/server/actions/cart";
+import { finalizarCompraAction } from "@/server/actions/orders";
 
 const PLACEHOLDER = "/productos/placeholder.svg";
 
 type ProductosPorId = Record<string, ProductoPublico>;
 
-export function CartView() {
-  const { items, totalUnidades, hidratado, actualizarCantidad, eliminar } =
-    useCart();
+function esRedireccionDeNext(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest?: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
+export function CartView({ autenticado }: { autenticado: boolean }) {
+  const {
+    items,
+    totalUnidades,
+    hidratado,
+    actualizarCantidad,
+    eliminar,
+    vaciar,
+  } = useCart();
+  const router = useRouter();
   const [productos, setProductos] = useState<ProductosPorId>({});
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorCheckout, setErrorCheckout] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [reintento, setReintento] = useState(0);
   const itemsRef = useRef(items);
+  const enviandoRef = useRef(false);
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const idsKey = useMemo(
     () => items.map((item) => item.productId).sort().join("|"),
@@ -147,6 +170,57 @@ export function CartView() {
     Object.values(productos),
   );
 
+  async function finalizarCompra() {
+    if (enviandoRef.current || itemsRef.current.length === 0) {
+      return;
+    }
+
+    enviandoRef.current = true;
+    setEnviando(true);
+    setErrorCheckout(null);
+
+    try {
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = crypto.randomUUID();
+      }
+
+      const resultado = await finalizarCompraAction({
+        items: itemsRef.current.map(({ productId, quantity }) => ({
+          productId,
+          quantity,
+        })),
+        idempotencyKey: idempotencyKeyRef.current,
+      });
+
+      if (!resultado.ok) {
+        setErrorCheckout(resultado.message);
+
+        if (
+          resultado.motivo === "stock-insuficiente" ||
+          resultado.motivo === "producto-no-disponible"
+        ) {
+          setReintento((valor) => valor + 1);
+        }
+
+        return;
+      }
+
+      vaciar();
+      router.push(`/app/pedidos/${resultado.pedidoId}?creado=1`);
+    } catch (error) {
+      if (esRedireccionDeNext(error)) {
+        throw error;
+      }
+
+      setErrorCheckout(
+        "No se pudo crear el pedido. Comprueba tu conexión e inténtalo de nuevo.",
+      );
+    } finally {
+      enviandoRef.current = false;
+      setEnviando(false);
+    }
+  }
+
   if (!hidratado) {
     return <CargandoCarrito />;
   }
@@ -209,16 +283,44 @@ export function CartView() {
               </div>
             </dl>
 
-            <button
-              type="button"
-              disabled
-              className="mt-6 w-full cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2.5 text-sm font-medium text-slate-500"
-            >
-              Finalizar compra
-            </button>
-            <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              El checkout estará disponible en la próxima tarea.
-            </p>
+            {errorCheckout ? (
+              <p
+                role="alert"
+                className="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+              >
+                {errorCheckout}
+              </p>
+            ) : null}
+
+            {autenticado ? (
+              <>
+                <button
+                  type="button"
+                  onClick={finalizarCompra}
+                  disabled={enviando}
+                  className="mt-6 w-full rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {enviando ? "Creando pedido…" : "Finalizar compra"}
+                </button>
+                <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                  El pedido se crea al instante y el stock se descuenta de forma
+                  segura.
+                </p>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login?callbackUrl=%2Fcarrito"
+                  className="mt-6 block w-full rounded-lg bg-slate-950 px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                >
+                  Finalizar compra
+                </Link>
+                <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                  Inicia sesión o crea una cuenta. Te devolveremos al carrito con
+                  tus productos intactos.
+                </p>
+              </>
+            )}
 
             <Link
               href="/productos"

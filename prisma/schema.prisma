@@ -66,6 +66,15 @@ enum QuoteStatus {
   expirado
 }
 
+/// Estado de un pedido de la tienda. En Fase 2 solo se crea `pendiente`;
+/// el resto queda preparado para la gestion administrativa posterior.
+enum OrderStatus {
+  pendiente
+  pagado
+  entregado
+  cancelado
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -78,6 +87,7 @@ model User {
 
   requests ServiceRequest[] @relation("ClientRequests")
   assigned ServiceRequest[] @relation("AssignedRequests")
+  orders   Order[]
 
   @@index([role])
   @@map("users")
@@ -156,12 +166,57 @@ model Product {
   category    ProductCategory
   active      Boolean         @default(true)
 
+  orderItems OrderItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([category])
   @@index([active])
   @@map("products")
+}
+
+/// Pedido de la tienda. El total y el precio de cada linea son copias del
+/// momento de la compra: un cambio posterior de precio no altera el historico.
+model Order {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  total  Decimal     @db.Decimal(10, 2)
+  status OrderStatus @default(pendiente)
+
+  /// Evita duplicados por doble clic o reintentos de red. Puede ser nulo en
+  /// pedidos creados fuera del checkout (por ejemplo, una importacion futura).
+  idempotencyKey String?
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  quantity Int
+  /// Precio unitario congelado en el momento de crear el pedido.
+  price    Decimal @db.Decimal(10, 2)
+
+  @@unique([orderId, productId])
+  @@index([productId])
+  @@map("order_items")
 }
 
 /// Configuración de negocio. Fila única: id fijo = 1.

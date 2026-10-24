@@ -4,8 +4,8 @@ export const CART_STORAGE_KEY = "softhard-carrito-v1";
 export const CART_VERSION = 1 as const;
 export const MAX_CART_ITEMS = 50;
 
-const MAX_PRODUCT_ID_LENGTH = 100;
-const MAX_QUANTITY = 999_999;
+export const MAX_PRODUCT_ID_LENGTH = 100;
+export const MAX_CART_QUANTITY = 999_999;
 
 export type CartItem = {
   productId: string;
@@ -77,7 +77,7 @@ export function normalizarCarrito(valor: unknown): CartItem[] {
     }
 
     const cantidadAcumulada = Math.min(
-      MAX_QUANTITY,
+      MAX_CART_QUANTITY,
       (acumulado.get(productId) ?? 0) + quantity,
     );
 

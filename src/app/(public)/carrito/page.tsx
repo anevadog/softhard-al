@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { CartView } from "@/components/cart/cart-view";
 import { SectionHeading } from "@/components/site/section-heading";
+import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Carrito",
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
     "Revisa los productos de tu carrito, ajusta cantidades y consulta el total antes de finalizar la compra.",
 };
 
-export default function CarritoPage() {
+export default async function CarritoPage() {
+  const session = await auth();
+
   return (
     <div className="bg-slate-50">
       <section className="border-b border-slate-200 bg-white">
@@ -25,7 +28,7 @@ export default function CarritoPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-        <CartView />
+        <CartView autenticado={Boolean(session?.user)} />
       </section>
     </div>
   );
