@@ -74,9 +74,10 @@ export const STEPS: readonly Step[] = [
 ];
 
 export const NAV_LINKS = [
-  { href: "#servicios", label: "Servicios" },
-  { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#contacto", label: "Contacto" },
+  { href: "/#servicios", label: "Servicios" },
+  { href: "/#como-funciona", label: "Cómo funciona" },
+  { href: "/#contacto", label: "Contacto" },
+  { href: "/productos", label: "Productos" },
 ] as const;
 
 /** Datos ficticios: el proyecto es una demo de portfolio. */

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ArrowRightIcon, CheckIcon } from "@/components/site/icons";
+import { ArrowRightIcon, BoxIcon, CheckIcon } from "@/components/site/icons";
 import { TRUST_POINTS } from "@/lib/site-content";
 
 const TIMELINE = [
@@ -61,10 +61,11 @@ export function Hero() {
               <ArrowRightIcon className="size-4" />
             </Link>
             <Link
-              href="/login"
-              className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+              href="/productos"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
             >
-              Iniciar sesión
+              <BoxIcon className="size-4" />
+              Ver productos
             </Link>
           </div>
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CpuIcon } from "@/components/site/icons";
+import { MobileNav } from "@/components/site/mobile-nav";
 import { NAV_LINKS } from "@/lib/site-content";
 
 export function SiteHeader() {
@@ -24,19 +25,22 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav aria-label="Secciones de la página" className="hidden items-center gap-7 md:flex">
+        <nav
+          aria-label="Navegación principal"
+          className="hidden items-center gap-7 md:flex"
+        >
           {NAV_LINKS.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
               className="text-sm text-slate-600 transition-colors hover:text-slate-950"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-1.5">
+        <div className="hidden items-center gap-1.5 md:flex">
           <Link
             href="/login"
             className="rounded-lg px-2.5 py-2 text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 sm:text-sm"
@@ -50,6 +54,8 @@ export function SiteHeader() {
             Registrarse
           </Link>
         </div>
+
+        <MobileNav />
       </div>
     </header>
   );
