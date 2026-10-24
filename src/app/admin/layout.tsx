@@ -33,12 +33,21 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               Panel interno
             </Link>
 
-            <nav aria-label="Panel interno" className="text-sm">
+            <nav
+              aria-label="Panel interno"
+              className="flex items-center gap-4 text-sm"
+            >
               <Link
                 href="/admin/solicitudes"
                 className="text-slate-600 transition-colors hover:text-slate-900"
               >
                 Solicitudes
+              </Link>
+              <Link
+                href="/admin/productos"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Productos
               </Link>
             </nav>
 

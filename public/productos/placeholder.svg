@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Producto sin imagen">
+  <rect width="400" height="300" fill="#f1f5f9" />
+  <rect x="120" y="82" width="160" height="112" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="4" />
+  <path d="M150 160l30-30 22 22 18-18 30 30" fill="none" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="170" cy="120" r="10" fill="#cbd5e1" />
+  <text x="200" y="232" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#64748b">SoftHard A&amp;L</text>
+  <text x="200" y="254" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#94a3b8">Imagen no disponible</text>
+</svg>
