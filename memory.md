@@ -4,8 +4,7 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
 - **Fase 1 completada** y **Fase 2 completada** (catálogo, carrito, pedidos, stock y gestión).
-- **Fase 3.1 completada**: datos, permisos, ruta `/trabajador`; siguiente tarea: **3.2**.
-- Specs en `docs/specs/`; sin commit ni push en esta sesión.
+- **Fase 3.1 completada** y **3.2a completada** (máquina de transiciones, cambio transaccional, historial y formulario del panel); siguiente: **3.2b** (asignación). Specs en `docs/specs/`; sin commit ni push en esta sesión.
 
 ## Stack y entorno
 - Node 24.22.1 · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7.
@@ -22,7 +21,7 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - Landing en `(public)`; copy en `site-content.ts`; validación Zod y capa de datos en `src/server/`.
 - `/app/solicitudes` filtra por cliente; ajeno → 404; `/admin` redirige a `/admin/solicitudes`.
 - Presupuesto: X/N de `Config`; X copiada en `diagnosticFee`; `finalAmount = presupuesto − X`; rechazo → `X`.
-- Expiración perezosa al leer; panel actual mantiene 8 estados hasta la máquina de 3.2.
+- Expiración perezosa al leer; sus transiciones ya generan historial. El panel usa la máquina de 3.2a con los 9 estados.
 
 ## Tienda, pedidos y stock
 - `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl?`, `active` lógico; ficha solo activos.
@@ -31,7 +30,7 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - `StockMovement` es libro; `Product.stock = suma(variation)`; ajuste manual solo staff y en transacción.
 
 ## Fase 3.1 — taller
-- `ServiceStatus` añade `esperando_repuesto`; `SERVICE_STATUSES` tiene 9 y `SERVICE_STATUSES_PANEL` mantiene 8.
+- `ServiceStatus` tiene 9 estados; `SERVICE_STATUSES_PANEL` se eliminó en 3.2a.
 - Modelos nuevos: `ServiceStatusHistory`, `ServiceAssignmentHistory`, `WorkLog`, `RequestNote` (+ `RequestNoteType`).
 - `ServiceRequest.lastActivityAt @default(now())`; backfill de filas existentes con `updatedAt`.
 - `Config`: `inactiveRequestHours = 48`, `openWorkLogHours = 8`; seed solo declara defaults al crear, conserva `update: {}` y guarda local.
@@ -39,9 +38,13 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - Migración `20261026145522_fase3_taller_datos` aplicada con `migrate deploy`; `migrate diff` → “No difference detected”.
 - `/trabajador` con layout mobile-first y placeholder; enlaces desde `/app` y `/admin`.
 
+## Fase 3.2a — transiciones
+- Tabla normal por rol en `lib/service-status.ts`; trabajador limitado a su flujo (lista solo desde en_reparacion), staff corrige con motivo y entregada solo staff.
+- Cambio transaccional (`updateMany` por estado; también assigneeId para trabajador) con historial, lastActivityAt y cierre de fichajes si el nuevo estado no es en_reparacion; presupuesto, decisión y expiración también historial. Formulario con 9 estados y motivo. Sin migración.
+
 ## Tests, QA y deuda
-- **269 tests en 30 archivos**; `typecheck`, `lint` y `build` limpios.
+- **300 tests en 35 archivos**; `typecheck`, `lint` y `build` limpios.
 - QA 3.1: índice → 23505; check fechas → 23514; rollback sin filas; backfill 1/1 solicitud igual a `updatedAt`.
 - Deuda: pedidos pendientes retienen stock hasta cancelar; sin tests de integración con BD real; rate limiting/emails.
-- Siguiente: 3.2 transiciones de estado y asignación con historiales; no avanzar sin revisión.
+- Siguiente: 3.2b asignación (asignar, reasignar, tomar, devolver) e interfaz; no avanzar sin revisión.
 - Aprendizajes: Prisma 7 exige driver adapter y `output`; Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.

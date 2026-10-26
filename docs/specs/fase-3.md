@@ -46,7 +46,9 @@ pasar de en_reparacion a esperando_repuesto y volver.
   operación es condicional: si otro la tomó antes, falla con mensaje claro y no
   hay doble asignación.
 - Un trabajador puede devolver una reparación al encargado con motivo
-  obligatorio. Queda sin responsable y aparece destacada al encargado.
+  obligatorio. La reparación conserva su estado y queda sin responsable; solo
+  encargado/admin puede reasignarla. Los trabajadores solo toman las aceptadas
+  sin responsable.
 - Cada cambio de responsable se guarda en un historial de asignaciones: quién la
   tenía, quién la recibe, quién lo hizo, motivo y fecha.
 - Si al reasignar o devolver el trabajador saliente tenía un fichaje abierto en
@@ -62,8 +64,9 @@ pasar de en_reparacion a esperando_repuesto y volver.
   garantiza también en la base de datos con un índice único parcial sobre los
   fichajes sin hora de salida, añadido como SQL manual en la migración. La salida
   nunca puede ser anterior a la entrada (restricción de base de datos).
-- Si se pasa la reparación a lista, esperando_repuesto, o se devuelve o reasigna,
-  el fichaje abierto de esa reparación se cierra en la misma transacción.
+- Siempre que el estado nuevo sea distinto de en_reparacion, el fichaje abierto
+  de esa reparación se cierra en la misma transacción. Esto cubre lista,
+  esperando_repuesto, entregada y también las correcciones del staff hacia atrás.
 - Si un fichaje lleva abierto más de un número de horas configurable (valor por
   defecto razonable), el trabajador ve un aviso y el encargado puede cerrarlo.
 - Las correcciones manuales solo las hace encargado o admin y dejan constancia de

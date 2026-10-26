@@ -4,7 +4,6 @@ import {
   EQUIPMENT_LABELS,
   MODALITY_LABELS,
   SERVICE_STATUSES,
-  SERVICE_STATUSES_PANEL,
   SERVICE_STATUS_META,
   TIME_SLOT_LABELS,
   etiquetaEstado,
@@ -31,11 +30,6 @@ describe("estados de solicitud", () => {
       expect(SERVICE_STATUS_META[estado].label.length).toBeGreaterThan(0);
       expect(SERVICE_STATUS_META[estado].badgeClass).toMatch(/ring-/);
     }
-  });
-
-  it("mantiene el panel limitado a los 8 estados anteriores hasta 3.2", () => {
-    expect(SERVICE_STATUSES_PANEL).toHaveLength(8);
-    expect(SERVICE_STATUSES_PANEL).not.toContain("esperando_repuesto");
   });
 
   it("traduce los estados con guion bajo a texto legible", () => {

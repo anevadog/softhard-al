@@ -16,6 +16,7 @@ import {
   obtenerConfig,
   obtenerSolicitudAdmin,
 } from "@/server/data/admin-requests";
+import { requerirStaff } from "@/server/authorization";
 
 export const metadata = {
   title: "Detalle de solicitud",
@@ -30,6 +31,7 @@ export default async function AdminSolicitudPage({
 }) {
   const { id } = await params;
   const { presupuesto, estado } = await searchParams;
+  const staff = await requerirStaff();
   const solicitud = await obtenerSolicitudAdmin(id);
 
   if (!solicitud) {
@@ -154,7 +156,12 @@ export default async function AdminSolicitudPage({
               Estado de la solicitud
             </h2>
             <div className="mt-4">
-              <StatusForm requestId={solicitud.id} status={solicitud.status} />
+              <StatusForm
+                requestId={solicitud.id}
+                status={solicitud.status}
+                role={staff.role}
+                tienePresupuesto={Boolean(solicitud.quote)}
+              />
             </div>
           </section>
         </div>

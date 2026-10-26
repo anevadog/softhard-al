@@ -1,15 +1,11 @@
 import type { ServiceStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
-import { calcularImporteSiAcepta, calcularImporteSiRechaza } from "@/lib/quotes";
-import {
-  puedeCambiarEstado,
-  necesitaPresupuesto,
-} from "@/lib/service-status";
 import {
   SERVICE_STATUSES,
   type SolicitudAdminDetalle,
   type SolicitudAdminResumen,
 } from "@/lib/service-requests";
+import { aplicarCambioEstadoEnTx } from "@/server/data/service-status";
 
 export type ConfigNegocio = {
   diagnosticFee: number;
@@ -127,20 +123,29 @@ export type DatosPresupuesto = {
   diagnosticFee: number;
   finalAmount: number;
   expiresAt: Date;
+  userId: string;
 };
 
 export type ResultadoCrearPresupuesto =
   | { ok: true; quoteId: string }
-  | { ok: false; motivo: "no-existe" | "ya-existe" };
+  | { ok: false; motivo: "no-existe" | "ya-existe" | "conflicto" };
+
+class PresupuestoEnConflicto extends Error {}
 
 export async function crearPresupuesto(
   datos: DatosPresupuesto,
 ): Promise<ResultadoCrearPresupuesto> {
+  const ahora = new Date();
+
   try {
     return await prisma.$transaction(async (tx) => {
       const solicitud = await tx.serviceRequest.findUnique({
         where: { id: datos.requestId },
-        select: { id: true, quote: { select: { id: true } } },
+        select: {
+          id: true,
+          status: true,
+          quote: { select: { id: true } },
+        },
       });
 
       if (!solicitud) {
@@ -165,8 +170,28 @@ export async function crearPresupuesto(
 
       await tx.serviceRequest.update({
         where: { id: datos.requestId },
-        data: { status: "diagnosticada", expiresAt: datos.expiresAt },
+        data: { expiresAt: datos.expiresAt },
       });
+
+      if (solicitud.status !== "diagnosticada") {
+        const cambio = await aplicarCambioEstadoEnTx(tx, {
+          requestId: datos.requestId,
+          estadoEsperado: solicitud.status,
+          estadoNuevo: "diagnosticada",
+          changedById: datos.userId,
+          reason: "Presupuesto creado",
+          ahora,
+        });
+
+        if (!cambio.ok) {
+          throw new PresupuestoEnConflicto();
+        }
+      } else {
+        await tx.serviceRequest.update({
+          where: { id: datos.requestId },
+          data: { lastActivityAt: ahora },
+        });
+      }
 
       return { ok: true as const, quoteId: quote.id };
     });
@@ -176,77 +201,12 @@ export async function crearPresupuesto(
       return { ok: false, motivo: "ya-existe" };
     }
 
+    if (error instanceof PresupuestoEnConflicto) {
+      return { ok: false, motivo: "conflicto" };
+    }
+
     throw error;
   }
-}
-
-export type ResultadoCambioEstado =
-  | { ok: true }
-  | { ok: false; motivo: "no-existe" | "mismo-estado" | "sin-presupuesto" };
-
-export async function cambiarEstadoSolicitud(
-  requestId: string,
-  nuevo: ServiceStatus,
-): Promise<ResultadoCambioEstado> {
-  const solicitud = await prisma.serviceRequest.findUnique({
-    where: { id: requestId },
-    select: {
-      status: true,
-      quote: { select: { budgetAmount: true, diagnosticFee: true } },
-    },
-  });
-
-  if (!solicitud) {
-    return { ok: false, motivo: "no-existe" };
-  }
-
-  if (
-    !puedeCambiarEstado(solicitud.status, nuevo, Boolean(solicitud.quote))
-  ) {
-    return {
-      ok: false,
-      motivo:
-        solicitud.status === nuevo
-          ? "mismo-estado"
-          : necesitaPresupuesto(nuevo)
-            ? "sin-presupuesto"
-            : "mismo-estado",
-    };
-  }
-
-  const quote = solicitud.quote;
-  // Mantener coherente el importe final si el cambio implica una decisión.
-  const decision =
-    quote && (nuevo === "aceptada" || nuevo === "rechazada")
-      ? {
-          status: nuevo === "aceptada" ? ("aceptado" as const) : ("rechazado" as const),
-          decidedAt: new Date(),
-          finalAmount:
-            nuevo === "aceptada"
-              ? calcularImporteSiAcepta(
-                  Number(quote.budgetAmount),
-                  Number(quote.diagnosticFee),
-                ).toFixed(2)
-              : calcularImporteSiRechaza(Number(quote.diagnosticFee)).toFixed(2),
-        }
-      : null;
-
-  await prisma.$transaction([
-    prisma.serviceRequest.update({
-      where: { id: requestId },
-      data: { status: nuevo },
-    }),
-    ...(decision
-      ? [
-          prisma.quote.update({
-            where: { requestId },
-            data: decision,
-          }),
-        ]
-      : []),
-  ]);
-
-  return { ok: true };
 }
 
 function esConflictoUnico(error: unknown): boolean {

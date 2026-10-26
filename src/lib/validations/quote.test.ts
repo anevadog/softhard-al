@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   decisionSchema,
-  estadoSolicitudSchema,
   quoteSchema,
 } from "@/lib/validations/quote";
 
@@ -66,29 +65,6 @@ describe("quoteSchema", () => {
 
   it("rechaza un requestId vacío", () => {
     expect(quoteSchema.safeParse({ ...VALID, requestId: "  " }).success).toBe(false);
-  });
-});
-
-describe("estadoSolicitudSchema", () => {
-  it("acepta cualquier estado del flujo", () => {
-    expect(estadoSolicitudSchema.parse({ requestId: VALID.requestId, status: "en_reparacion" }).status).toBe(
-      "en_reparacion",
-    );
-  });
-
-  it("rechaza estados inventados", () => {
-    expect(
-      estadoSolicitudSchema.safeParse({ requestId: VALID.requestId, status: "cancelada" }).success,
-    ).toBe(false);
-  });
-
-  it("no acepta todavía el estado nuevo desde el panel", () => {
-    expect(
-      estadoSolicitudSchema.safeParse({
-        requestId: VALID.requestId,
-        status: "esperando_repuesto",
-      }).success,
-    ).toBe(false);
   });
 });
 

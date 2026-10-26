@@ -10,6 +10,7 @@ import type {
   SolicitudResumen,
 } from "@/lib/service-requests";
 import type { ServiceRequestInput } from "@/lib/validations/service-request";
+import { aplicarCambioEstadoEnTx } from "@/server/data/service-status";
 
 /**
  * Capa de datos de solicitudes. Las acciones y páginas no tocan Prisma
@@ -34,40 +35,70 @@ export async function crearSolicitudCliente(
   });
 }
 
+/** Conflicto al expirar: sirve para revertir la transacción completa. */
+class ExpiracionEnConflicto extends Error {}
+
 /**
  * Expiración perezosa (Fase 1 no tiene cron): al leer, los presupuestos
  * vencidos pasan a `expirado` y su solicitud a `expirada`. Es idempotente.
+ *
+ * Las candidatas se seleccionan DENTRO de la transacción y cada solicitud se
+ * actualiza con la condición `id + status` que se leyó. Así el historial solo
+ * se crea para las filas que realmente cambiaron. Preferimos esta estrategia a
+ * `updateManyAndReturn` porque necesitamos el estado de origen, que esa
+ * operación no devuelve.
  */
 export async function expirarPresupuestosVencidos(
   clientId?: string,
 ): Promise<void> {
   const ahora = new Date();
 
-  const vencidas = await prisma.serviceRequest.findMany({
-    where: {
-      ...(clientId ? { clientId } : {}),
-      status: { in: ["pendiente", "diagnosticada"] },
-      quote: { is: { status: "pendiente", expiresAt: { lte: ahora } } },
-    },
-    select: { id: true },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const vencidas = await tx.serviceRequest.findMany({
+        where: {
+          ...(clientId ? { clientId } : {}),
+          status: { in: ["pendiente", "diagnosticada"] },
+          quote: { is: { status: "pendiente", expiresAt: { lte: ahora } } },
+        },
+        select: { id: true, status: true },
+      });
 
-  if (vencidas.length === 0) {
-    return;
+      for (const solicitud of vencidas) {
+        const quoteActualizado = await tx.quote.updateMany({
+          where: {
+            requestId: solicitud.id,
+            status: "pendiente",
+            expiresAt: { lte: ahora },
+          },
+          data: { status: "expirado" },
+        });
+
+        if (quoteActualizado.count === 0) {
+          continue;
+        }
+
+        const cambio = await aplicarCambioEstadoEnTx(tx, {
+          requestId: solicitud.id,
+          estadoEsperado: solicitud.status,
+          estadoNuevo: "expirada",
+          changedById: null,
+          reason: "Presupuesto vencido",
+          ahora,
+        });
+
+        if (!cambio.ok) {
+          throw new ExpiracionEnConflicto();
+        }
+      }
+    });
+  } catch (error) {
+    if (error instanceof ExpiracionEnConflicto) {
+      return;
+    }
+
+    throw error;
   }
-
-  const ids = vencidas.map((solicitud) => solicitud.id);
-
-  await prisma.$transaction([
-    prisma.quote.updateMany({
-      where: { requestId: { in: ids }, status: "pendiente" },
-      data: { status: "expirado" },
-    }),
-    prisma.serviceRequest.updateMany({
-      where: { id: { in: ids }, status: { in: ["pendiente", "diagnosticada"] } },
-      data: { status: "expirada" },
-    }),
-  ]);
 }
 
 export async function listarSolicitudesCliente(clientId: string): Promise<SolicitudResumen[]> {
@@ -221,15 +252,16 @@ export async function decidirPresupuestoCliente(
         return false;
       }
 
-      const solicitudActualizada = await tx.serviceRequest.updateMany({
-        where: {
-          id: requestId,
-          status: { in: ["pendiente", "diagnosticada"] },
-        },
-        data: { status: resultado.estadoSolicitud },
+      const cambio = await aplicarCambioEstadoEnTx(tx, {
+        requestId,
+        estadoEsperado: solicitud.status,
+        estadoNuevo: resultado.estadoSolicitud,
+        changedById: clientId,
+        reason: null,
+        ahora,
       });
 
-      if (solicitudActualizada.count === 0) {
+      if (!cambio.ok) {
         throw new DecisionEnConflicto();
       }
 
