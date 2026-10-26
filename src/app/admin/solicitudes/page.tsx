@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AttentionPanel } from "@/components/admin/attention-panel";
 import { RequestsTable } from "@/components/admin/requests-table";
 import {
   SERVICE_STATUSES,
@@ -47,6 +48,8 @@ export default async function AdminSolicitudesPage({
             : `${total} ${total === 1 ? "solicitud registrada" : "solicitudes registradas"}.`}
         </p>
       </div>
+
+      <AttentionPanel />
 
       {faltasPendientes > 0 ? (
         <p

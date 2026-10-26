@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { InactivityBanner } from "@/components/taller/inactivity-banner";
 import { RepairCard } from "@/components/taller/repair-card";
 import { WorkLogCard } from "@/components/taller/work-log-card";
 import { etiquetaEstado } from "@/lib/service-requests";
@@ -62,6 +63,8 @@ export default async function TallerHomePage({
           Reparación devuelta al encargado.
         </p>
       ) : null}
+
+      {esTrabajador ? <InactivityBanner userId={usuario.id} /> : null}
 
       {avisoFichaje ? (
         <p

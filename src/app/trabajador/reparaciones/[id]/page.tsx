@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { StatusBadge } from "@/components/service-requests/status-badge";
+import { InactivityBanner } from "@/components/taller/inactivity-banner";
 import { NoteForm } from "@/components/taller/note-form";
 import { NoteList } from "@/components/taller/note-list";
 import { AssignmentHistory, StatusHistory } from "@/components/taller/repair-history";
@@ -92,6 +93,8 @@ export default async function ReparacionTallerPage({
           Última actividad: {formatearFechaHora(reparacion.lastActivityAt)}
         </p>
       </div>
+
+      <InactivityBanner userId={usuario.id} />
 
       {tomada === "1" ? (
         <Aviso>Reparación tomada. Ahora eres su responsable.</Aviso>

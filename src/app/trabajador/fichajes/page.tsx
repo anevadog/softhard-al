@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { InactivityBanner } from "@/components/taller/inactivity-banner";
 import { WorkLogList, etiquetaReparacionFichaje } from "@/components/taller/work-log-list";
 import { formatearFechaCorta } from "@/lib/format";
 import {
@@ -65,6 +66,8 @@ export default async function MisFichajesPage({
           {formatearFechaCorta(new Date(semana.fin.getTime() - 1))} (hora de Madrid).
         </p>
       </div>
+
+      <InactivityBanner userId={usuario.id} />
 
       <nav aria-label="Semanas" className="flex items-center justify-between gap-3 text-sm">
         <Link

@@ -5,6 +5,7 @@ import {
   type RolTaller,
 } from "@/lib/service-status";
 import { cerrarFichajesAbiertosEnTx } from "@/server/data/work-logs";
+import { WHERE_PARA_TOMAR } from "@/server/data/worker-requests";
 
 export type TrabajadorAsignable = {
   id: string;
@@ -138,8 +139,9 @@ export async function asignarSolicitudStaff(
 }
 
 /**
- * Autoasignación de una reparación aceptada y sin responsable. El `updateMany`
- * condicional es lo que garantiza que dos trabajadores no la tomen a la vez.
+ * Autoasignación de una reparación aceptada, sin responsable y nunca devuelta
+ * (`WHERE_PARA_TOMAR`). El `updateMany` condicional es lo que garantiza que
+ * dos trabajadores no la tomen a la vez.
  */
 export async function tomarSolicitudTrabajador(
   datos: DatosToma,
@@ -152,11 +154,7 @@ export async function tomarSolicitudTrabajador(
 
   return prisma.$transaction(async (tx) => {
     const actualizada = await tx.serviceRequest.updateMany({
-      where: {
-        id: datos.requestId,
-        status: "aceptada",
-        assigneeId: null,
-      },
+      where: { id: datos.requestId, ...WHERE_PARA_TOMAR },
       data: {
         assigneeId: datos.actorId,
         lastActivityAt: ahora,

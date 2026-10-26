@@ -100,12 +100,16 @@ describe("consultas del panel del trabajador", () => {
     expect(args.select).toMatchObject({ lastActivityAt: true });
   });
 
-  it("lista para tomar solo aceptadas sin responsable y con tope", async () => {
+  it("lista para tomar solo aceptadas sin responsable, nunca devueltas y con tope", async () => {
     await listarReparacionesParaTomar();
 
     const args = argumentos<ArgsConsulta>(findMany);
 
-    expect(args.where).toEqual({ status: "aceptada", assigneeId: null });
+    expect(args.where).toEqual({
+      status: "aceptada",
+      assigneeId: null,
+      assignmentHistory: { none: { toAssigneeId: null } },
+    });
     expect(args.take).toBe(LIMITE_PARA_TOMAR);
   });
 
@@ -132,6 +136,7 @@ describe("consultas del panel del trabajador", () => {
       id: "req-1",
       status: "aceptada",
       assigneeId: null,
+      assignmentHistory: { none: { toAssigneeId: null } },
     });
   });
 

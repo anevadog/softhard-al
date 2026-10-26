@@ -9,6 +9,17 @@ import {
 /** Tope de la lista "Para tomar": el taller no debería acumular más. */
 export const LIMITE_PARA_TOMAR = 50;
 
+/**
+ * Lo que un trabajador puede tomar: aceptada, sin responsable y nunca
+ * devuelta. Una entrada del historial con `toAssigneeId` nulo solo la crea una
+ * devolución, y una devuelta solo la reasigna encargado o admin.
+ */
+export const WHERE_PARA_TOMAR = {
+  status: "aceptada",
+  assigneeId: null,
+  assignmentHistory: { none: { toAssigneeId: null } },
+} satisfies Prisma.ServiceRequestWhereInput;
+
 const SELECT_RESUMEN = {
   id: true,
   status: true,
@@ -39,12 +50,12 @@ export async function listarMisReparaciones(
   });
 }
 
-/** Reparaciones aceptadas sin responsable que cualquier trabajador puede tomar. */
+/** Reparaciones que cualquier trabajador puede tomar (ver `WHERE_PARA_TOMAR`). */
 export async function listarReparacionesParaTomar(): Promise<
   ReparacionTallerResumen[]
 > {
   return prisma.serviceRequest.findMany({
-    where: { status: "aceptada", assigneeId: null },
+    where: WHERE_PARA_TOMAR,
     orderBy: { lastActivityAt: "asc" },
     take: LIMITE_PARA_TOMAR,
     select: SELECT_RESUMEN,
@@ -108,7 +119,7 @@ export async function obtenerReparacionTrabajador(
   }
 
   const libre = await prisma.serviceRequest.findFirst({
-    where: { id, status: "aceptada", assigneeId: null },
+    where: { id, ...WHERE_PARA_TOMAR },
     select: SELECT_DETALLE_BASE,
   });
 

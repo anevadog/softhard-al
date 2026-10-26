@@ -227,7 +227,7 @@ describe("asignaciones de reparaciones", () => {
     expect(tx.serviceRequest.updateMany).not.toHaveBeenCalled();
   });
 
-  it("toma una reparación aceptada y sin responsable", async () => {
+  it("toma una reparación aceptada, sin responsable y nunca devuelta", async () => {
     await expect(
       tomarSolicitudTrabajador({
         requestId: "req-1",
@@ -241,6 +241,8 @@ describe("asignaciones de reparaciones", () => {
         id: "req-1",
         status: "aceptada",
         assigneeId: null,
+        // Una devuelta solo la reasigna el staff.
+        assignmentHistory: { none: { toAssigneeId: null } },
       },
       data: {
         assigneeId: "worker-1",
