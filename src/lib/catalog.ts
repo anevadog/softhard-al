@@ -33,6 +33,16 @@ export function hrefCategoriaProducto(
     : "/productos";
 }
 
+/** URL de la ficha pública, conservando el filtro desde el que se llega. */
+export function hrefFichaProducto(
+  id: string,
+  categoria: ProductCategory | null,
+): string {
+  const base = `/productos/${encodeURIComponent(id)}`;
+
+  return categoria ? `${base}?categoria=${categoria}` : base;
+}
+
 export function estadoStock(stock: number): EstadoStock {
   if (stock <= 0) {
     return "agotado";

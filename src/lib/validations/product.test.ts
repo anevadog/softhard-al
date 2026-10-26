@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { productSchema } from "@/lib/validations/product";
+import {
+  productIdSchema,
+  productSchema,
+} from "@/lib/validations/product";
 
 const VALID = {
   name: "Teclado mecánico Keychron K2",
@@ -98,5 +101,22 @@ describe("productSchema", () => {
 
   it("rechaza un formulario sin campos", () => {
     expect(productSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("productIdSchema", () => {
+  it("acepta un identificador normal y lo recorta", () => {
+    expect(productIdSchema.parse(" demo-prod-thinkpad-t14 ")).toBe(
+      "demo-prod-thinkpad-t14",
+    );
+  });
+
+  it("rechaza identificadores vacíos o solo con espacios", () => {
+    expect(productIdSchema.safeParse("").success).toBe(false);
+    expect(productIdSchema.safeParse("   ").success).toBe(false);
+  });
+
+  it("rechaza identificadores de más de 64 caracteres", () => {
+    expect(productIdSchema.safeParse("a".repeat(65)).success).toBe(false);
   });
 });

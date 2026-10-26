@@ -72,4 +72,5 @@ export type ProductInput = z.infer<typeof productSchema>;
 export const productIdSchema = z
   .string()
   .trim()
-  .min(1, "Producto no válido");
+  .min(1, "Producto no válido")
+  .max(64, "Producto no válido");

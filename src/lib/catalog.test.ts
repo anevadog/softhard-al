@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   estadoStock,
   hrefCategoriaProducto,
+  hrefFichaProducto,
   parseCategoriaProducto,
   textoStock,
 } from "@/lib/catalog";
@@ -35,6 +36,15 @@ describe("URLs de filtro", () => {
   it("conserva la categoría seleccionada", () => {
     expect(hrefCategoriaProducto("portatiles")).toBe(
       "/productos?categoria=portatiles",
+    );
+  });
+
+  it("construye la ficha sin filtro o conservando la categoría", () => {
+    expect(hrefFichaProducto("demo-prod-keychron-k2", null)).toBe(
+      "/productos/demo-prod-keychron-k2",
+    );
+    expect(hrefFichaProducto("demo-prod-keychron-k2", "accesorios")).toBe(
+      "/productos/demo-prod-keychron-k2?categoria=accesorios",
     );
   });
 });

@@ -84,6 +84,18 @@ export async function listarProductosPublicos(
   return productos.map(aProductoPublico);
 }
 
+/** Ficha pública: solo devuelve productos activos. */
+export async function obtenerProductoPublico(
+  id: string,
+): Promise<ProductoPublico | null> {
+  const producto = await prisma.product.findFirst({
+    where: { id, active: true },
+    select: PRODUCTO_PUBLICO_SELECT,
+  });
+
+  return producto ? aProductoPublico(producto) : null;
+}
+
 /** Productos activos que necesita el carrito para refrescar precio y stock. */
 export async function listarProductosPorIds(
   ids: string[],

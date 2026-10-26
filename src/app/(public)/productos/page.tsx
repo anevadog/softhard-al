@@ -59,7 +59,7 @@ export default async function ProductosPage({
           <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {productos.map((producto) => (
               <li key={producto.id}>
-                <ProductCard producto={producto} />
+                <ProductCard producto={producto} categoriaFiltro={categoria} />
               </li>
             ))}
           </ul>
