@@ -1,13 +1,23 @@
 import Link from "next/link";
 
 import { RepairCard } from "@/components/taller/repair-card";
+import { WorkLogCard } from "@/components/taller/work-log-card";
 import { etiquetaEstado } from "@/lib/service-requests";
 import { agruparPorEstado } from "@/lib/worker-requests";
 import { requerirPersonalTaller } from "@/server/authorization";
 import {
+  obtenerFichajeAbierto,
+  obtenerHorasFichajeAbierto,
+} from "@/server/data/work-logs";
+import {
   listarMisReparaciones,
   listarReparacionesParaTomar,
 } from "@/server/data/worker-requests";
+
+const AVISOS_FICHAJE = {
+  entrada: "Entrada fichada.",
+  salida: "Salida fichada.",
+} as const;
 
 export const metadata = {
   title: "Taller",
@@ -16,17 +26,22 @@ export const metadata = {
 export default async function TallerHomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ devuelta?: string }>;
+  searchParams: Promise<{ devuelta?: string; fichaje?: string }>;
 }) {
-  const { devuelta } = await searchParams;
+  const { devuelta, fichaje } = await searchParams;
   const usuario = await requerirPersonalTaller();
   const esTrabajador = usuario.role === "trabajador";
 
-  const [mias, paraTomar] = await Promise.all([
+  const [mias, paraTomar, abierto, horasAviso] = await Promise.all([
     listarMisReparaciones(usuario.id),
     esTrabajador ? listarReparacionesParaTomar() : Promise.resolve([]),
+    esTrabajador ? obtenerFichajeAbierto(usuario.id) : Promise.resolve(null),
+    obtenerHorasFichajeAbierto(),
   ]);
   const grupos = agruparPorEstado(mias);
+  const ahora = new Date();
+  const avisoFichaje =
+    fichaje === "entrada" || fichaje === "salida" ? AVISOS_FICHAJE[fichaje] : null;
 
   return (
     <div className="space-y-6">
@@ -46,6 +61,19 @@ export default async function TallerHomePage({
         >
           Reparación devuelta al encargado.
         </p>
+      ) : null}
+
+      {avisoFichaje ? (
+        <p
+          className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          role="status"
+        >
+          {avisoFichaje}
+        </p>
+      ) : null}
+
+      {esTrabajador ? (
+        <WorkLogCard abierto={abierto} horasAviso={horasAviso} ahora={ahora} />
       ) : null}
 
       {!esTrabajador ? (

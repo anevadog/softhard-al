@@ -32,7 +32,14 @@ export default async function TallerLayout({ children }: { children: ReactNode }
               >
                 Panel
               </Link>
-            ) : null}
+            ) : (
+              <Link
+                href="/trabajador/fichajes"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Mis fichajes
+              </Link>
+            )}
             <form
               action={async () => {
                 "use server";

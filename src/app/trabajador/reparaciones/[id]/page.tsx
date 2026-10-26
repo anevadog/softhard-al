@@ -6,15 +6,23 @@ import { StatusBadge } from "@/components/service-requests/status-badge";
 import { AssignmentHistory, StatusHistory } from "@/components/taller/repair-history";
 import { ReturnForm } from "@/components/taller/return-form";
 import { TakeForm } from "@/components/taller/take-form";
+import { EntradaReparacionForm, SalidaForm } from "@/components/taller/work-log-forms";
+import { WorkLogList, etiquetaReparacionFichaje } from "@/components/taller/work-log-list";
 import { WorkerStatusForm } from "@/components/taller/worker-status-form";
-import { formatearFechaCorta, formatearFechaHora } from "@/lib/format";
+import { formatearFechaCorta, formatearFechaHora, formatearHora } from "@/lib/format";
 import {
   EQUIPMENT_LABELS,
   MODALITY_LABELS,
   TIME_SLOT_LABELS,
 } from "@/lib/service-requests";
 import { esEstadoFinal } from "@/lib/service-status";
+import { excedeHorasAbierto, formatearDuracion, minutosFichaje } from "@/lib/work-logs";
 import { requerirPersonalTaller } from "@/server/authorization";
+import {
+  listarFichajesReparacionTrabajador,
+  obtenerFichajeAbierto,
+  obtenerHorasFichajeAbierto,
+} from "@/server/data/work-logs";
 import { obtenerReparacionTrabajador } from "@/server/data/worker-requests";
 
 export const metadata = {
@@ -26,10 +34,10 @@ export default async function ReparacionTallerPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tomada?: string; estado?: string }>;
+  searchParams: Promise<{ tomada?: string; estado?: string; fichaje?: string }>;
 }) {
   const { id } = await params;
-  const { tomada, estado } = await searchParams;
+  const { tomada, estado, fichaje } = await searchParams;
   const usuario = await requerirPersonalTaller();
 
   // Encargado y admin gestionan la reparación desde el panel.
@@ -44,6 +52,16 @@ export default async function ReparacionTallerPage({
   }
 
   const finalizada = esEstadoFinal(reparacion.status);
+  // Los fichajes solo se consultan para reparaciones propias.
+  const [abierto, fichajes, horasAviso] = reparacion.esMia
+    ? await Promise.all([
+        obtenerFichajeAbierto(usuario.id),
+        listarFichajesReparacionTrabajador(reparacion.id, usuario.id),
+        obtenerHorasFichajeAbierto(),
+      ])
+    : [null, [], 0];
+  const ahora = new Date();
+  const abiertoAqui = abierto?.request?.id === reparacion.id ? abierto : null;
 
   return (
     <div className="space-y-5">
@@ -71,6 +89,10 @@ export default async function ReparacionTallerPage({
       ) : null}
 
       {estado === "1" ? <Aviso>Estado actualizado.</Aviso> : null}
+
+      {fichaje === "entrada" ? <Aviso>Entrada fichada.</Aviso> : null}
+
+      {fichaje === "salida" ? <Aviso>Salida fichada.</Aviso> : null}
 
       <Seccion titulo="Equipo y avería">
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
@@ -121,6 +143,58 @@ export default async function ReparacionTallerPage({
 
       {reparacion.esMia ? (
         <>
+          <Seccion titulo="Fichajes">
+            <div className="space-y-4">
+              {finalizada ? null : abiertoAqui ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-700">
+                    Fichado aquí desde las{" "}
+                    <span className="font-medium text-slate-900">
+                      {formatearHora(abiertoAqui.startedAt)}
+                    </span>{" "}
+                    ({formatearDuracion(minutosFichaje(abiertoAqui, ahora))}).
+                  </p>
+                  {excedeHorasAbierto(abiertoAqui, horasAviso, ahora) ? (
+                    <p
+                      className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                      role="alert"
+                    >
+                      Este fichaje lleva abierto más de {horasAviso} horas. Si olvidaste
+                      fichar la salida, ciérralo y avisa al encargado.
+                    </p>
+                  ) : null}
+                  <SalidaForm workLogId={abiertoAqui.id} origen="reparacion" />
+                </div>
+              ) : abierto ? (
+                <p className="text-sm text-slate-600">
+                  Tienes un fichaje abierto en{" "}
+                  {abierto.request
+                    ? etiquetaReparacionFichaje(abierto.request)
+                    : "horas generales"}
+                  . Ciérralo
+                  desde el{" "}
+                  <Link href="/trabajador" className="font-medium text-slate-900 underline">
+                    inicio del taller
+                  </Link>{" "}
+                  antes de fichar aquí.
+                </p>
+              ) : reparacion.status === "en_reparacion" ? (
+                <EntradaReparacionForm requestId={reparacion.id} />
+              ) : (
+                <p className="text-sm text-slate-600">
+                  Podrás fichar cuando la reparación esté en reparación.
+                </p>
+              )}
+
+              <WorkLogList
+                fichajes={fichajes}
+                ahora={ahora}
+                mostrarTrabajador
+                vacio="Todavía no hay fichajes en esta reparación."
+              />
+            </div>
+          </Seccion>
+
           <Seccion titulo="Historial de estados">
             <StatusHistory entradas={reparacion.statusHistory} />
           </Seccion>

@@ -1,3 +1,9 @@
+/**
+ * Zona horaria del taller. Todas las fechas se guardan en UTC y se muestran en
+ * hora de Madrid, aunque el servidor corra en otra zona (por ejemplo, UTC).
+ */
+export const ZONA_HORARIA = "Europe/Madrid";
+
 const euros = new Intl.NumberFormat("es-ES", {
   style: "currency",
   currency: "EUR",
@@ -6,17 +12,33 @@ const euros = new Intl.NumberFormat("es-ES", {
 });
 
 const fechaCorta = new Intl.DateTimeFormat("es-ES", {
+  timeZone: ZONA_HORARIA,
   day: "2-digit",
   month: "short",
   year: "numeric",
 });
 
 const fechaHora = new Intl.DateTimeFormat("es-ES", {
+  timeZone: ZONA_HORARIA,
   day: "2-digit",
   month: "short",
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+});
+
+const hora = new Intl.DateTimeFormat("es-ES", {
+  timeZone: ZONA_HORARIA,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+const diaSemana = new Intl.DateTimeFormat("es-ES", {
+  timeZone: ZONA_HORARIA,
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
 });
 
 /**
@@ -37,3 +59,12 @@ export function formatearFechaHora(fecha: Date): string {
   return fechaHora.format(fecha);
 }
 
+/** Solo la hora (HH:mm) en hora de Madrid, para fichajes. */
+export function formatearHora(fecha: Date): string {
+  return hora.format(fecha);
+}
+
+/** Día de la semana y fecha corta, para agrupar fichajes. */
+export function formatearDiaSemana(fecha: Date): string {
+  return diaSemana.format(fecha);
+}

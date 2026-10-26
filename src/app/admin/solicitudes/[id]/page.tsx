@@ -5,8 +5,10 @@ import type { ReactNode } from "react";
 import { AssignmentForm } from "@/components/admin/assignment-form";
 import { QuoteForm } from "@/components/admin/quote-form";
 import { StatusForm } from "@/components/admin/status-form";
+import { StaffWorkLogActions } from "@/components/admin/work-log-staff-actions";
 import { QuoteSummary } from "@/components/service-requests/quote-summary";
 import { StatusBadge } from "@/components/service-requests/status-badge";
+import { WorkLogList } from "@/components/taller/work-log-list";
 import { formatearFechaCorta, formatearFechaHora } from "@/lib/format";
 import {
   EQUIPMENT_LABELS,
@@ -19,6 +21,7 @@ import {
   obtenerSolicitudAdmin,
 } from "@/server/data/admin-requests";
 import { listarTrabajadoresAsignables } from "@/server/data/assignments";
+import { listarFichajesReparacion } from "@/server/data/work-logs";
 import { requerirStaff } from "@/server/authorization";
 
 export const metadata = {
@@ -34,10 +37,11 @@ export default async function AdminSolicitudPage({
     presupuesto?: string;
     estado?: string;
     asignacion?: string;
+    fichaje?: string;
   }>;
 }) {
   const { id } = await params;
-  const { presupuesto, estado, asignacion } = await searchParams;
+  const { presupuesto, estado, asignacion, fichaje } = await searchParams;
   const staff = await requerirStaff();
   const solicitud = await obtenerSolicitudAdmin(id);
 
@@ -49,6 +53,8 @@ export default async function AdminSolicitudPage({
   const trabajadores = esEstadoFinal(solicitud.status)
     ? []
     : await listarTrabajadoresAsignables();
+  const fichajes = await listarFichajesReparacion(solicitud.id);
+  const ahora = new Date();
 
   return (
     <div className="space-y-6">
@@ -96,6 +102,15 @@ export default async function AdminSolicitudPage({
           role="status"
         >
           Responsable actualizado.
+        </p>
+      ) : null}
+
+      {fichaje === "1" ? (
+        <p
+          className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          role="status"
+        >
+          Fichaje actualizado.
         </p>
       ) : null}
 
@@ -199,6 +214,20 @@ export default async function AdminSolicitudPage({
           </section>
         </div>
       </div>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-base font-semibold text-slate-900">Fichajes</h2>
+        <p className="mt-1 text-xs text-slate-500">Horas en zona de Madrid.</p>
+        <div className="mt-4">
+          <WorkLogList
+            fichajes={fichajes}
+            ahora={ahora}
+            mostrarTrabajador
+            vacio="Todavía no hay fichajes en esta reparación."
+            acciones={(item) => <StaffWorkLogActions fichaje={item} origen="solicitud" />}
+          />
+        </div>
+      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="text-base font-semibold text-slate-900">
