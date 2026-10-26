@@ -3,7 +3,7 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Fase 1**, **Fase 2** y **3.1–3.3** cerradas con commit; docs al día en `0b1d7c3`. **3.4** (fichaje) hecha, sin commit y pendiente de revisión. Siguiente: **3.5** notas. Specs en `docs/specs/`.
+- **Fase 1**, **Fase 2** y **3.1–3.4** cerradas con commit (3.4 en `d797630`); docs al día en `0b1d7c3`. Siguiente: **3.5** notas y falta de repuesto (plan antes de construir). Specs en `docs/specs/`.
 
 ## Stack y entorno
 - Node 24.22.1 · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7.
@@ -34,7 +34,7 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Fase 3.3 — panel del trabajador
 - `/trabajador`: mis reparaciones agrupadas (aceptada → en_reparacion → esperando_repuesto → lista, más antigua primero) y "Para tomar" (máx. 50) solo para trabajador; staff ve enlace al panel.
-- `/trabajador/reparaciones/[id]`: secciones Equipo y avería, Visita, Acciones, Historial de estados y de asignaciones (3.4/3.5 se insertan antes de los historiales). Staff → redirect al detalle admin.
+- `/trabajador/reparaciones/[id]`: secciones Equipo y avería, Visita, Acciones, Historial de estados y de asignaciones (Fichajes de 3.4 y Notas de 3.5 van antes de los historiales). Staff → redirect al detalle admin.
 - Datos en `server/data/worker-requests.ts` con filtro en el `where`; ajena/inexistente → 404; libre → solo lectura con "Tomar", con consulta propia sin historiales ni cliente (tipo unión por `esMia`). Sin email/teléfono.
 - Botones de estado desde `accionesEstadoTrabajador` (`lib/worker-requests.ts`), sin correcciones. Tomar y cambiar estado redirigen al detalle. Componentes en `components/taller/` con `onSubmit` + `useTransition`.
 
