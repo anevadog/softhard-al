@@ -3,6 +3,24 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcrypt";
 
 import { PrismaClient } from "../src/generated/prisma/client";
+import { evaluarSeed } from "../src/lib/seed-guard";
+
+const guardSeed = evaluarSeed();
+
+if (!guardSeed.permitido) {
+  if (guardSeed.motivo === "url-ausente") {
+    console.error("Seed bloqueado: DATABASE_URL no está definida.");
+  } else if (guardSeed.motivo === "url-invalida") {
+    console.error("Seed bloqueado: DATABASE_URL no se puede interpretar.");
+  } else {
+    console.error(
+      `Seed bloqueado: el host "${guardSeed.host}" no es local. ` +
+        "Usa SEED_ALLOW_PRODUCTION=true solo si confirmas que quieres cargar los datos demo en esa base.",
+    );
+  }
+
+  process.exit(1);
+}
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 
