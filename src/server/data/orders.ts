@@ -6,6 +6,7 @@ import {
   type PedidoDetalle,
   type PedidoResumen,
 } from "@/lib/orders";
+import { crearMovimientosVenta } from "@/server/data/stock-movements";
 
 export type ResultadoCrearPedido =
   | { ok: true; pedidoId: string }
@@ -115,6 +116,8 @@ export async function crearPedidoCliente(
         },
         select: { id: true },
       });
+
+      await crearMovimientosVenta(tx, pedido.id, preparado.lineas);
 
       return { ok: true, pedidoId: pedido.id };
     });

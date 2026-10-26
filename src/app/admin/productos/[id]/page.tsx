@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 
 import { DeleteProductForm } from "@/components/admin/delete-product-form";
 import { ProductForm } from "@/components/admin/product-form";
+import { StockAdjustmentForm } from "@/components/admin/stock-adjustment-form";
+import { StockHistory } from "@/components/admin/stock-history";
 import { formatEuros, formatearFechaCorta } from "@/lib/format";
 import { PRODUCT_CATEGORY_LABELS } from "@/lib/products";
 import { obtenerProductoAdmin } from "@/server/data/products";
+import { listarMovimientosProducto } from "@/server/data/stock";
 
 export const metadata = {
   title: "Editar producto",
@@ -13,15 +16,20 @@ export const metadata = {
 
 export default async function EditarProductoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ ajuste?: string }>;
 }) {
   const { id } = await params;
+  const { ajuste } = await searchParams;
   const producto = await obtenerProductoAdmin(id);
 
   if (!producto) {
     notFound();
   }
+
+  const movimientos = await listarMovimientosProducto(id, 10);
 
   return (
     <div className="space-y-6">
@@ -46,8 +54,42 @@ export default async function EditarProductoPage({
         </p>
       </div>
 
+      {ajuste === "1" ? (
+        <p
+          className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+          role="status"
+        >
+          Stock actualizado correctamente.
+        </p>
+      ) : null}
+
       <section className="rounded-xl border border-slate-200 bg-white p-6">
         <ProductForm producto={producto} />
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-base font-semibold text-slate-900">
+          Ajuste de stock
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Registra una reposición o corrige el stock. Cada cambio queda en el
+          historial con el usuario que lo realizó.
+        </p>
+        <div className="mt-4 max-w-md">
+          <StockAdjustmentForm productId={producto.id} stock={producto.stock} />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-base font-semibold text-slate-900">
+          Últimos movimientos
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Los 10 cambios de stock más recientes de este producto.
+        </p>
+        <div className="mt-4">
+          <StockHistory movimientos={movimientos} />
+        </div>
       </section>
 
       <section className="rounded-xl border border-rose-200 bg-white p-6">

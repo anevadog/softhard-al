@@ -5,13 +5,19 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import type { FormState } from "@/lib/form-state";
-import { productIdSchema, productSchema } from "@/lib/validations/product";
+import {
+  productCreateSchema,
+  productEditSchema,
+  productIdSchema,
+} from "@/lib/validations/product";
+import { stockAdjustmentSchema } from "@/lib/validations/stock";
 import { requerirStaff } from "@/server/authorization";
 import {
   actualizarProducto,
   archivarProducto,
   crearProducto,
 } from "@/server/data/products";
+import { ajustarStockProducto } from "@/server/data/stock";
 
 function camposProducto(formData: FormData) {
   return {
@@ -30,7 +36,7 @@ export async function crearProductoAction(
 ): Promise<FormState> {
   await requerirStaff();
 
-  const parsed = productSchema.safeParse(camposProducto(formData));
+  const parsed = productCreateSchema.safeParse(camposProducto(formData));
 
   if (!parsed.success) {
     const { fieldErrors } = z.flattenError(parsed.error);
@@ -70,7 +76,7 @@ export async function editarProductoAction(
     return { status: "error", message: "Producto no válido." };
   }
 
-  const parsed = productSchema.safeParse(camposProducto(formData));
+  const parsed = productEditSchema.safeParse(camposProducto(formData));
 
   if (!parsed.success) {
     const { fieldErrors } = z.flattenError(parsed.error);
@@ -103,7 +109,62 @@ export async function editarProductoAction(
   revalidatePath("/admin/productos");
   revalidatePath(`/admin/productos/${parsedId.data}`);
   revalidatePath("/productos");
+  revalidatePath(`/productos/${parsedId.data}`);
   redirect("/admin/productos?actualizado=1");
+}
+
+export async function ajustarStockAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const staff = await requerirStaff();
+
+  const parsed = stockAdjustmentSchema.safeParse({
+    productId: formData.get("productId"),
+    reason: formData.get("reason"),
+    variation: formData.get("variation"),
+    note: formData.get("note") ?? "",
+  });
+
+  if (!parsed.success) {
+    const { fieldErrors } = z.flattenError(parsed.error);
+
+    return {
+      status: "error",
+      message: "Revisa los datos del ajuste de stock.",
+      fieldErrors,
+    };
+  }
+
+  try {
+    const resultado = await ajustarStockProducto({
+      ...parsed.data,
+      userId: staff.id,
+    });
+
+    if (!resultado.ok) {
+      return {
+        status: "error",
+        message:
+          resultado.motivo === "stock-insuficiente"
+            ? "El ajuste dejaría el stock en negativo. Revisa la variación."
+            : "El producto no existe o está archivado.",
+      };
+    }
+  } catch (error) {
+    console.error("Error ajustando stock:", error);
+
+    return {
+      status: "error",
+      message: "No se pudo ajustar el stock. Inténtalo de nuevo.",
+    };
+  }
+
+  revalidatePath("/admin/productos");
+  revalidatePath(`/admin/productos/${parsed.data.productId}`);
+  revalidatePath("/productos");
+  revalidatePath(`/productos/${parsed.data.productId}`);
+  redirect(`/admin/productos/${parsed.data.productId}?ajuste=1`);
 }
 
 export async function borrarProductoAction(

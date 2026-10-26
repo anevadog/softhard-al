@@ -4,6 +4,7 @@ import { hash } from "bcrypt";
 
 import { PrismaClient } from "../src/generated/prisma/client";
 import { evaluarSeed } from "../src/lib/seed-guard";
+import { crearProductoSeedSiNoExiste } from "../src/server/data/seed-products";
 
 const guardSeed = evaluarSeed();
 
@@ -141,17 +142,27 @@ async function seedDemoUsers() {
   console.log(`Usuarios demo: ${DEMO_USERS.length} cuentas con contraseña "${DEMO_PASSWORD}"`);
 }
 
-/** Catálogo de demostración. Idempotente: upsert por id y sin pisar cambios. */
+/**
+ * Catálogo de demostración. Idempotente: solo crea el producto si no existía.
+ * El stock_inicial se registra únicamente en ese alta y con el stock demo,
+ * nunca con el stock actual de la base.
+ */
 async function seedProducts() {
+  let creados = 0;
+
   for (const product of DEMO_PRODUCTS) {
-    await prisma.product.upsert({
-      where: { id: product.id },
-      update: {},
-      create: product,
-    });
+    const creado = await prisma.$transaction((tx) =>
+      crearProductoSeedSiNoExiste(tx, product),
+    );
+
+    if (creado) {
+      creados += 1;
+    }
   }
 
-  console.log(`Productos demo: ${DEMO_PRODUCTS.length} productos`);
+  console.log(
+    `Productos demo: ${DEMO_PRODUCTS.length} productos (${creados} creados en esta ejecución)`,
+  );
 }
 
 async function main() {

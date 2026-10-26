@@ -12,6 +12,10 @@ vi.mock("@/server/data/products", () => ({
   archivarProducto: vi.fn(),
 }));
 
+vi.mock("@/server/data/stock", () => ({
+  ajustarStockProducto: vi.fn(),
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -23,6 +27,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import {
+  ajustarStockAction,
   borrarProductoAction,
   crearProductoAction,
   editarProductoAction,
@@ -33,6 +38,7 @@ import {
   archivarProducto,
   crearProducto,
 } from "@/server/data/products";
+import { ajustarStockProducto } from "@/server/data/stock";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -56,6 +62,23 @@ function formulario(overrides: Record<string, string> = {}) {
   return data;
 }
 
+function formularioAjuste(overrides: Record<string, string> = {}) {
+  const data = new FormData();
+  const valores = {
+    productId: "prod-1",
+    reason: "reposicion",
+    variation: "5",
+    note: "",
+    ...overrides,
+  };
+
+  for (const [campo, valor] of Object.entries(valores)) {
+    data.set(campo, valor);
+  }
+
+  return data;
+}
+
 describe("acciones de productos", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -68,6 +91,7 @@ describe("acciones de productos", () => {
     vi.mocked(crearProducto).mockResolvedValue({ id: "prod-1" });
     vi.mocked(actualizarProducto).mockResolvedValue(true);
     vi.mocked(archivarProducto).mockResolvedValue(true);
+    vi.mocked(ajustarStockProducto).mockResolvedValue({ ok: true });
   });
 
   it("crea un producto válido, revalida y redirige", async () => {
@@ -151,21 +175,34 @@ describe("acciones de productos", () => {
       ),
     ).rejects.toThrow("REDIRECT:/admin/productos?actualizado=1");
 
-    expect(actualizarProducto).toHaveBeenCalledWith(
-      "prod-1",
-      expect.objectContaining({
-        name: VALID.name,
-        price: 49.9,
-        stock: 12,
-        imageUrl: null,
-      }),
-    );
+    const [, datos] = vi.mocked(actualizarProducto).mock.calls[0];
+
+    expect(datos).toMatchObject({
+      name: VALID.name,
+      price: 49.9,
+      imageUrl: null,
+    });
+    expect(datos).not.toHaveProperty("stock");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/productos");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/productos/prod-1");
     expect(revalidatePath).toHaveBeenCalledWith("/productos");
     expect(redirect).toHaveBeenCalledWith(
       "/admin/productos?actualizado=1",
     );
+  });
+
+  it("ignora el stock inyectado en la edición", async () => {
+    await expect(
+      editarProductoAction(
+        FORM_STATE_INICIAL,
+        formulario({ productId: "prod-1", stock: "999" }),
+      ),
+    ).rejects.toThrow("REDIRECT:/admin/productos?actualizado=1");
+
+    const [, datos] = vi.mocked(actualizarProducto).mock.calls[0];
+
+    expect(datos).not.toHaveProperty("stock");
+    expect(datos).toMatchObject({ price: 49.9 });
   });
 
   it("rechaza una edición sin identificador", async () => {
@@ -219,6 +256,80 @@ describe("acciones de productos", () => {
     expect(resultado.status).toBe("error");
     expect(resultado.message).toContain("ya no existe");
     expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("aplica una reposición, revalida y redirige a la ficha", async () => {
+    await expect(
+      ajustarStockAction(FORM_STATE_INICIAL, formularioAjuste()),
+    ).rejects.toThrow("REDIRECT:/admin/productos/prod-1?ajuste=1");
+
+    expect(ajustarStockProducto).toHaveBeenCalledWith({
+      productId: "prod-1",
+      reason: "reposicion",
+      variation: 5,
+      note: null,
+      userId: "staff-1",
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/productos");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/productos/prod-1");
+    expect(revalidatePath).toHaveBeenCalledWith("/productos");
+    expect(revalidatePath).toHaveBeenCalledWith("/productos/prod-1");
+    expect(redirect).toHaveBeenCalledWith("/admin/productos/prod-1?ajuste=1");
+  });
+
+  it("rechaza variación cero y reposición negativa sin escribir", async () => {
+    const cero = await ajustarStockAction(
+      FORM_STATE_INICIAL,
+      formularioAjuste({ variation: "0" }),
+    );
+    const negativa = await ajustarStockAction(
+      FORM_STATE_INICIAL,
+      formularioAjuste({ variation: "-1" }),
+    );
+
+    expect(cero.status).toBe("error");
+    expect(negativa.status).toBe("error");
+    expect(ajustarStockProducto).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("exige nota en un ajuste", async () => {
+    const resultado = await ajustarStockAction(
+      FORM_STATE_INICIAL,
+      formularioAjuste({ reason: "ajuste", variation: "-1", note: " " }),
+    );
+
+    expect(resultado.status).toBe("error");
+    expect(resultado.fieldErrors?.note?.[0]).toBeTruthy();
+    expect(ajustarStockProducto).not.toHaveBeenCalled();
+  });
+
+  it("informa si el ajuste dejaría el stock en negativo", async () => {
+    vi.mocked(ajustarStockProducto).mockResolvedValue({
+      ok: false,
+      motivo: "stock-insuficiente",
+    });
+
+    const resultado = await ajustarStockAction(
+      FORM_STATE_INICIAL,
+      formularioAjuste({ reason: "ajuste", variation: "-5", note: "Rotura" }),
+    );
+
+    expect(resultado.status).toBe("error");
+    expect(resultado.message).toContain("negativo");
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("no ajusta stock si el usuario no es staff", async () => {
+    vi.mocked(requerirStaff).mockRejectedValue(
+      new Error("REDIRECT:/app"),
+    );
+
+    await expect(
+      ajustarStockAction(FORM_STATE_INICIAL, formularioAjuste()),
+    ).rejects.toThrow("REDIRECT:/app");
+
+    expect(ajustarStockProducto).not.toHaveBeenCalled();
   });
 
   it("no ejecuta la acción si el usuario no es staff", async () => {

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { MAX_CART_ITEMS } from "@/lib/cart";
-import { checkoutSchema } from "@/lib/validations/order";
+import {
+  cambiarEstadoPedidoSchema,
+  checkoutSchema,
+} from "@/lib/validations/order";
 
 const CLAVE = "123e4567-e89b-42d3-a456-426614174000";
 
@@ -78,6 +81,55 @@ describe("validación del checkout", () => {
   it("rechaza una clave de idempotencia que no sea UUID", () => {
     expect(
       checkoutSchema.safeParse(payload({ idempotencyKey: "no-es-uuid" })).success,
+    ).toBe(false);
+  });
+});
+
+describe("validación del cambio de estado de pedido", () => {
+  const BASE = {
+    orderId: "order-1",
+    estadoEsperado: "pendiente",
+    estadoNuevo: "pagado",
+    motivo: "",
+  } as const;
+
+  it("acepta una transición sin motivo", () => {
+    const resultado = cambiarEstadoPedidoSchema.parse(BASE);
+
+    expect(resultado.motivo).toBeNull();
+  });
+
+  it("exige motivo al cancelar un pedido pagado", () => {
+    const resultado = cambiarEstadoPedidoSchema.safeParse({
+      ...BASE,
+      estadoEsperado: "pagado",
+      estadoNuevo: "cancelado",
+    });
+
+    expect(resultado.success).toBe(false);
+    if (!resultado.success) {
+      expect(resultado.error.flatten().fieldErrors.motivo?.[0]).toBe(
+        "Indica el motivo de la cancelación",
+      );
+    }
+  });
+
+  it("permite cancelar un pedido pendiente sin motivo", () => {
+    expect(
+      cambiarEstadoPedidoSchema.safeParse({
+        ...BASE,
+        estadoEsperado: "pendiente",
+        estadoNuevo: "cancelado",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rechaza estados desconocidos", () => {
+    expect(
+      cambiarEstadoPedidoSchema.safeParse({
+        ...BASE,
+        estadoNuevo: "enviado",
+      }).success,
     ).toBe(false);
   });
 });

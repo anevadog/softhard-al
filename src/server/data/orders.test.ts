@@ -29,6 +29,9 @@ function crearTx() {
     order: {
       create: vi.fn(),
     },
+    stockMovement: {
+      createMany: vi.fn(),
+    },
   };
 }
 
@@ -66,6 +69,7 @@ describe("creación de pedidos", () => {
     tx.product.findMany.mockResolvedValue(productosDePrueba() as never);
     tx.product.updateMany.mockResolvedValue({ count: 1 });
     tx.order.create.mockResolvedValue({ id: "order-1" });
+    tx.stockMovement.createMany.mockResolvedValue({ count: 2 });
     configurarTransaccion(tx);
 
     const resultado = await crearPedidoCliente(
@@ -109,6 +113,49 @@ describe("creación de pedidos", () => {
       },
       select: { id: true },
     });
+    expect(tx.stockMovement.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          productId: "prod-b",
+          variation: -2,
+          reason: "venta",
+          orderId: "order-1",
+        },
+        {
+          productId: "prod-a",
+          variation: -3,
+          reason: "venta",
+          orderId: "order-1",
+        },
+      ],
+    });
+  });
+
+  it("crea el pedido antes que sus movimientos de venta", async () => {
+    const tx = crearTx();
+    const eventos: string[] = [];
+    tx.product.findMany.mockResolvedValue(productosDePrueba() as never);
+    tx.product.updateMany.mockResolvedValue({ count: 1 });
+    tx.order.create.mockImplementation(async () => {
+      eventos.push("pedido");
+      return { id: "order-1" };
+    });
+    tx.stockMovement.createMany.mockImplementation(async () => {
+      eventos.push("movimientos");
+      return { count: 2 };
+    });
+    configurarTransaccion(tx);
+
+    await crearPedidoCliente(
+      "user-1",
+      [
+        { productId: "prod-b", quantity: 2 },
+        { productId: "prod-a", quantity: 3 },
+      ],
+      CLAVE,
+    );
+
+    expect(eventos).toEqual(["pedido", "movimientos"]);
   });
 
   it("devuelve el pedido existente sin abrir transacción", async () => {
@@ -146,6 +193,7 @@ describe("creación de pedidos", () => {
     });
     expect(tx.product.updateMany).not.toHaveBeenCalled();
     expect(tx.order.create).not.toHaveBeenCalled();
+    expect(tx.stockMovement.createMany).not.toHaveBeenCalled();
   });
 
   it("revierte la transacción si otro usuario se lleva la última unidad", async () => {
@@ -168,6 +216,7 @@ describe("creación de pedidos", () => {
       productIds: ["prod-a"],
     });
     expect(tx.order.create).not.toHaveBeenCalled();
+    expect(tx.stockMovement.createMany).not.toHaveBeenCalled();
     expect(prisma.order.findFirst).toHaveBeenCalledTimes(2);
   });
 
@@ -188,6 +237,7 @@ describe("creación de pedidos", () => {
 
     expect(resultado).toEqual({ ok: true, pedidoId: "order-carrera" });
     expect(tx.order.create).not.toHaveBeenCalled();
+    expect(tx.stockMovement.createMany).not.toHaveBeenCalled();
   });
 
   it("detecta un producto inactivo", async () => {
@@ -209,6 +259,7 @@ describe("creación de pedidos", () => {
       productIds: ["prod-a"],
     });
     expect(tx.product.updateMany).not.toHaveBeenCalled();
+    expect(tx.stockMovement.createMany).not.toHaveBeenCalled();
   });
 
   it("resuelve una violación de unicidad consultando la clave idempotente", async () => {
@@ -228,6 +279,42 @@ describe("creación de pedidos", () => {
     );
 
     expect(resultado).toEqual({ ok: true, pedidoId: "order-unico" });
+    expect(tx.stockMovement.createMany).not.toHaveBeenCalled();
+  });
+
+  it("no crea movimientos si falla la creación del pedido", async () => {
+    const tx = crearTx();
+    tx.product.findMany.mockResolvedValue(productosDePrueba() as never);
+    tx.product.updateMany.mockResolvedValue({ count: 1 });
+    tx.order.create.mockRejectedValue(new Error("order"));
+    configurarTransaccion(tx);
+
+    await expect(
+      crearPedidoCliente(
+        "user-1",
+        [{ productId: "prod-a", quantity: 1 }],
+        CLAVE,
+      ),
+    ).rejects.toThrow("order");
+
+    expect(tx.stockMovement.createMany).not.toHaveBeenCalled();
+  });
+
+  it("propaga el fallo al crear los movimientos para revertir el pedido", async () => {
+    const tx = crearTx();
+    tx.product.findMany.mockResolvedValue(productosDePrueba() as never);
+    tx.product.updateMany.mockResolvedValue({ count: 1 });
+    tx.order.create.mockResolvedValue({ id: "order-1" });
+    tx.stockMovement.createMany.mockRejectedValue(new Error("movement"));
+    configurarTransaccion(tx);
+
+    await expect(
+      crearPedidoCliente(
+        "user-1",
+        [{ productId: "prod-a", quantity: 1 }],
+        CLAVE,
+      ),
+    ).rejects.toThrow("movement");
   });
 
   it("propaga los errores inesperados", async () => {

@@ -2,9 +2,10 @@
 
 ## Objetivo
 
-Construir el flujo de compra de la tienda: catálogo público, gestión interna de
-productos, carrito local, checkout transaccional, historial de pedidos y página de
-éxito. La ficha de detalle de producto queda para una tarea posterior.
+Construir el flujo de compra de la tienda: catálogo público, ficha de producto,
+gestión interna de productos y stock, carrito local, checkout transaccional,
+historial de pedidos, página de éxito y gestión administrativa de pedidos. La fase
+incluye el libro de movimientos de stock como fuente de verdad del stock.
 
 ## Alcance de la Tarea 1
 
@@ -59,11 +60,58 @@ productos, carrito local, checkout transaccional, historial de pedidos y página
   administrativa posterior.
 - Sin pasarela de pago y sin panel de administración de pedidos en esta tarea.
 
+## Alcance de la Tarea 5
+
+- Ficha pública `/productos/[id]` para productos activos.
+- Imagen, descripción, precio, disponibilidad y acceso al carrito.
+- Producto inexistente o archivado devuelve 404.
+- Enlace de vuelta al catálogo conservando la categoría cuando corresponda.
+
+## Alcance de la Tarea 6A
+
+- Enum y modelo `StockMovement` con `variation`, `reason`, `orderId`, `userId`,
+  `note` y `createdAt`.
+- Restricciones: variación distinta de cero y signo coherente con el motivo.
+- Backfill `stock_inicial` para todos los productos con stock mayor que cero,
+  incluidos los archivados.
+- Checkout y alta de producto crean sus movimientos en la misma transacción.
+- Seed idempotente: solo crea `stock_inicial` al crear el producto.
+- Consulta de consistencia `Product.stock = suma de movimientos`.
+
+## Alcance de la Tarea 6B
+
+- Alta con stock inicial; edición sin campo de stock, aunque se inyecte en la
+  petición.
+- Stock visible como dato de solo lectura en la edición.
+- Ajuste manual solo para `encargado` y `admin`, con motivo, variación y nota.
+- Reposición positiva; ajuste con signo y nota obligatoria; máximo de 10.000
+  unidades por movimiento.
+- Vista previa «stock actual → stock resultante» y botón deshabilitado al enviar.
+- Actualización condicional en transacción para impedir stock negativo y guardar el
+  movimiento con el usuario.
+- Historial de los últimos 10 movimientos en la ficha del producto.
+
+## Alcance de la Tarea 7
+
+- `/admin/pedidos` con filtro por estado, contadores, cliente, fecha, total y estado.
+- Detalle `/admin/pedidos/[id]` con cliente, líneas a precio congelado y total;
+  pedido inexistente devuelve 404.
+- Transiciones puras `pendiente → pagado | cancelado` y
+  `pagado → entregado | cancelado`; `entregado` y `cancelado` son finales.
+- Actualización condicional sobre el estado esperado para resolver carreras y dobles
+  clics; la petición perdedora recibe un mensaje claro.
+- Cancelación transaccional con reposición de todas las líneas, incluidas las
+  archivadas, y un movimiento `cancelacion_pedido` positivo por línea.
+- Motivo obligatorio y aviso de no reembolso al cancelar un pedido pagado.
+- Enlace desde el historial de stock al detalle del pedido.
+- Sin historial de estados del pedido ni tests de integración con base de datos real.
+
 ## Actores
 
-- **Encargado / admin**: gestiona el catálogo desde el panel.
-- **Cliente / trabajador**: sin acceso al panel de productos; puede comprar y
-  consultar sus propios pedidos.
+- **Encargado / admin**: gestiona catálogo, stock, pedidos y solicitudes desde el
+  panel.
+- **Cliente / trabajador**: sin acceso al panel interno; puede comprar y consultar
+  sus propios pedidos.
 - **Visitante**: consulta el catálogo y usa el carrito local, pero debe iniciar
   sesión para finalizar la compra.
 
@@ -158,6 +206,37 @@ model OrderItem {
   @@index([productId])
   @@map("order_items")
 }
+
+enum StockMovementReason {
+  stock_inicial
+  venta
+  cancelacion_pedido
+  reposicion
+  ajuste
+}
+
+model StockMovement {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  variation Int
+  reason    StockMovementReason
+
+  orderId String?
+  order   Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([orderId])
+  @@map("stock_movements")
+}
 ```
 
 ## Reglas de negocio
@@ -183,6 +262,22 @@ model OrderItem {
 - El carrito no se sincroniza con la cuenta; el checkout de la Tarea 4 exige
   iniciar sesión y conserva los productos locales.
 
+### Edición y ajuste de stock
+
+- El alta valida y fija el stock inicial; la edición no acepta ni escribe stock,
+  aunque el campo se inyecte en la petición.
+- La edición muestra el stock como dato de solo lectura y remite al ajuste.
+- Solo `encargado` y `admin` pueden ajustar stock; la acción revalida el rol en
+  servidor.
+- La variación es un entero distinto de cero y como máximo de 10.000 unidades por
+  movimiento.
+- Reposición: solo positiva, con nota opcional.
+- Ajuste: positivo o negativo, con nota obligatoria.
+- Solo se ajustan productos activos. La actualización condicional impide que el
+  stock quede negativo y el movimiento se crea en la misma transacción.
+- El historial muestra los últimos 10 movimientos con fecha, motivo, variación,
+  usuario o «Sistema» y el pedido abreviado, enlazado al detalle del pedido.
+
 ### Pedidos
 
 - Solo un usuario autenticado puede crear un pedido; la acción vuelve a comprobar
@@ -201,12 +296,61 @@ model OrderItem {
 - La clave de idempotencia es un UUID único por usuario. Un reintento con la misma
   clave devuelve el pedido existente. Si dos peticiones compiten, la restricción
   única resuelve la carrera y la perdedora consulta el pedido ganador.
-- Los pedidos nuevos nacen en `pendiente`. `pagado`, `entregado` y `cancelado`
-  quedan preparados para tareas posteriores.
+- Los pedidos nuevos nacen en `pendiente`; «pagado» se marca a mano porque no hay
+  pasarela de pago.
+- Transiciones permitidas: `pendiente → pagado | cancelado` y
+  `pagado → entregado | cancelado`. `entregado` y `cancelado` son finales.
+- Cada cambio usa una actualización condicional sobre el estado esperado. Si el
+  pedido cambió, no se escribe nada y la petición perdedora recibe un mensaje para
+  recargar.
+- La cancelación se ejecuta en una transacción: primero actualiza el estado de forma
+  condicional y solo si modificó una fila lee las líneas. Después repone el stock de
+  todas ellas, incluidas las de productos archivados, y crea un movimiento positivo
+  `cancelacion_pedido` por línea, ligado al pedido y al usuario.
+- Una segunda cancelación no repone stock ni crea movimientos.
+- Cancelar un pedido pagado exige motivo y avisa de que la aplicación no gestiona
+  reembolsos.
 - El carrito solo se vacía después de recibir un pedido creado correctamente.
 - El historial y el detalle filtran por `userId`; un identificador ajeno devuelve
   404 sin revelar si existe.
-- No hay pasarela de pago: el pedido queda pendiente de gestión manual.
+- El panel de pedidos es exclusivo de `encargado` y `admin`; un pedido inexistente
+  devuelve 404.
+
+### Movimientos de stock
+
+- Todo cambio de stock se registra en `StockMovement` dentro de la misma
+  transacción que modifica `Product.stock`.
+- Invariante del libro: `Product.stock = suma de StockMovement.variation` para
+  cada producto. Una suma vacía vale 0.
+- `variation` es un entero distinto de cero y su signo depende del motivo:
+  - `venta`: negativo;
+  - `stock_inicial`, `reposicion` y `cancelacion_pedido`: positivo;
+  - `ajuste`: positivo o negativo, nunca cero.
+- `productId` es obligatorio y usa `onDelete: Restrict`: un producto con
+  movimientos no se borra físicamente. El catálogo usa borrado lógico.
+- `userId` es opcional. `null` representa sistema, migración o seed. Si se borra
+  el usuario, el movimiento se conserva con `userId = null`.
+- `orderId` es opcional. Si se borra el pedido, el movimiento se conserva con
+  `orderId = null`.
+- La migración crea un `stock_inicial` por cada producto existente con stock
+  mayor que cero, incluidos los archivados. Los productos con stock 0 no reciben
+  movimiento porque la variación no puede ser cero y la suma vacía ya es 0.
+- El checkout crea un movimiento `venta` por cada línea, con variación negativa y
+  ligado al pedido, después de crear el pedido y dentro de su misma transacción.
+- El alta de producto con stock mayor que cero crea su `stock_inicial` en la misma
+  transacción.
+- El seed solo crea `stock_inicial` cuando crea el producto, usando el stock
+  inicial definido en los datos demo. Si el producto ya existía, no crea ni
+  completa movimientos: su stock pudo cambiar por ventas o reposiciones.
+- Un ajuste manual crea `reposicion` o `ajuste` con la variación, la nota y el
+  usuario que lo realizó. La actualización de stock y el movimiento son atómicos.
+- La cancelación de un pedido crea un movimiento `cancelacion_pedido` positivo por
+  cada línea, con `orderId` y el usuario que cancela. No se filtra `active`, así que
+  un producto archivado también recupera stock.
+- La cancelación se aplica después de que el cambio condicional de estado haya
+  modificado una fila; si pierde la carrera, no se repone stock.
+- Los pedidos pendientes retienen el stock descontado hasta que se cancelan. No hay
+  liberación automática ni reserva al añadir al carrito.
 
 ## Criterios de aceptación
 
@@ -260,14 +404,55 @@ model OrderItem {
 - [x] Un pedido de otro usuario devuelve 404.
 - [x] Tests de cálculo, stock, validación, acción, idempotencia y callback; `typecheck`, `lint` y `build` pasan.
 
+### Tarea 5
+
+- [x] `/productos/[id]` muestra la ficha de un producto activo.
+- [x] Un producto inexistente o archivado devuelve 404.
+- [x] La ficha enlaza de vuelta al catálogo y conserva la categoría cuando aplica.
+- [x] Tests, `typecheck`, `lint` y `build` pasan.
+
+### Tarea 6A
+
+- [x] Existen `StockMovement` y `StockMovementReason` con restricciones de signo.
+- [x] La migración backfill incluye productos archivados con stock mayor que cero.
+- [x] Checkout, alta y seed mantienen la invariante del libro.
+- [x] La consulta de consistencia devuelve cero filas.
+- [x] Tests de movimientos, `typecheck`, `lint` y `build` pasan.
+
+### Tarea 6B
+
+- [x] La edición no puede modificar stock aunque se inyecte en la petición.
+- [x] Solo `encargado` y `admin` ajustan stock, con rol revalidado en servidor.
+- [x] Reposición, ajuste, nota, máximo y vista previa funcionan según las reglas.
+- [x] Un ajuste que dejaría stock negativo se rechaza sin crear movimiento.
+- [x] La ficha muestra los últimos 10 movimientos y enlaza al pedido asociado.
+- [x] QA local: reposición, ajuste negativo, rechazo por negativo y consistencia.
+- [x] Tests, `typecheck`, `lint` y `build` pasan.
+
+### Tarea 7
+
+- [x] `/admin/pedidos` lista y filtra pedidos con contadores.
+- [x] El detalle muestra cliente, líneas a precio congelado y total.
+- [x] Las transiciones válidas e inválidas están cubiertas por tests.
+- [x] La actualización condicional resuelve dobles clics y carreras.
+- [x] Cancelar repone stock de todas las líneas y crea un movimiento por línea.
+- [x] La segunda cancelación no repone stock.
+- [x] Cancelar un pedido pagado exige motivo y avisa de que no hay reembolso.
+- [x] El cliente ve el estado actualizado en `/app/pedidos`.
+- [x] QA local: pedido pagado, cancelación, doble cancelación y consistencia.
+- [x] Tests, `typecheck`, `lint` y `build` pasan.
+
 ## Fuera de alcance
 
-- Página de detalle de producto.
-- Pasarela de pago y cobro real.
-- Gestión administrativa de pedidos, cambios manuales de estado, cancelación y
-  reposición de stock.
+- Pasarela de pago, cobro real y reembolsos.
+- Historial de estados de pedido y notificaciones automáticas.
+- Integración del catálogo con el área de cliente (recomendaciones o
+  personalización).
+- Liberación automática o reserva de stock distinta del descuento al crear el
+  pedido.
 - Sincronización del carrito con la cuenta al iniciar sesión.
 - Cupones, envíos, impuestos y facturación.
 - Subida de imágenes.
 - Gestión de categorías desde el panel.
 - Slug, SKU, buscador y paginación.
+- Tests de integración automáticos con base de datos real (deuda anotada).

@@ -178,31 +178,44 @@ export function ProductForm({ producto }: { producto?: ProductoEditable }) {
           )}
         </div>
 
-        <div>
-          <label htmlFor="stock" className={labelClass}>
-            Stock
-          </label>
-          <input
-            id="stock"
-            name="stock"
-            type="number"
-            min={0}
-            max={999999}
-            step={1}
-            value={valores.stock}
-            onChange={alCambiar}
-            aria-invalid={Boolean(errors.stock)}
-            aria-describedby={errors.stock ? "stock-error" : "stock-hint"}
-            className={inputClass}
-          />
-          {errors.stock ? (
-            <FieldError id="stock-error" messages={errors.stock} />
-          ) : (
-            <p id="stock-hint" className="mt-1.5 text-xs text-slate-500">
-              Número entero de unidades disponibles.
+        {producto ? (
+          <div>
+            <p className={labelClass}>Stock actual</p>
+            <p className="mt-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              {producto.stock}{" "}
+              {producto.stock === 1 ? "unidad" : "unidades"}
             </p>
-          )}
-        </div>
+            <p className="mt-1.5 text-xs text-slate-500">
+              Se modifica desde el ajuste de stock, no desde esta edición.
+            </p>
+          </div>
+        ) : (
+          <div>
+            <label htmlFor="stock" className={labelClass}>
+              Stock
+            </label>
+            <input
+              id="stock"
+              name="stock"
+              type="number"
+              min={0}
+              max={999999}
+              step={1}
+              value={valores.stock}
+              onChange={alCambiar}
+              aria-invalid={Boolean(errors.stock)}
+              aria-describedby={errors.stock ? "stock-error" : "stock-hint"}
+              className={inputClass}
+            />
+            {errors.stock ? (
+              <FieldError id="stock-error" messages={errors.stock} />
+            ) : (
+              <p id="stock-hint" className="mt-1.5 text-xs text-slate-500">
+                Número entero de unidades disponibles.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div>

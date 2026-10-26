@@ -21,7 +21,7 @@ function esUrlHttp(value: string): boolean {
   }
 }
 
-export const productSchema = z.object({
+const productBaseSchema = z.object({
   name: z
     .string()
     .trim()
@@ -43,16 +43,6 @@ export const productSchema = z.object({
       (value) => value <= MAX_PRICE,
       `El precio no puede superar ${MAX_PRICE.toFixed(2)} €`,
     ),
-  stock: z
-    .string()
-    .trim()
-    .min(1, "Indica el stock disponible")
-    .regex(/^\d+$/, "El stock debe ser un número entero")
-    .transform(Number)
-    .refine(
-      (value) => value <= MAX_STOCK,
-      `El stock no puede superar ${MAX_STOCK} unidades`,
-    ),
   category: z.enum(PRODUCT_CATEGORIES, {
     error: "Selecciona una categoría",
   }),
@@ -67,7 +57,28 @@ export const productSchema = z.object({
     .transform((value) => (value === "" ? null : value)),
 });
 
-export type ProductInput = z.infer<typeof productSchema>;
+/**
+ * El stock solo se fija en el alta. A partir de ahí cambia por movimientos
+ * (ventas, cancelaciones, reposiciones y ajustes), no por una edición normal.
+ */
+export const productCreateSchema = productBaseSchema.extend({
+  stock: z
+    .string()
+    .trim()
+    .min(1, "Indica el stock disponible")
+    .regex(/^\d+$/, "El stock debe ser un número entero")
+    .transform(Number)
+    .refine(
+      (value) => value <= MAX_STOCK,
+      `El stock no puede superar ${MAX_STOCK} unidades`,
+    ),
+});
+
+/** Zod descarta cualquier `stock` inyectado en el formulario de edición. */
+export const productEditSchema = productBaseSchema;
+
+export type ProductCreateInput = z.infer<typeof productCreateSchema>;
+export type ProductEditInput = z.infer<typeof productEditSchema>;
 
 export const productIdSchema = z
   .string()

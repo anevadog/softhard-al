@@ -35,6 +35,24 @@ export function etiquetaEstadoPedido(status: OrderStatus): string {
   return ORDER_STATUS_META[status].label;
 }
 
+/**
+ * Regla única de transición del pedido. `pagado` se marca a mano porque no hay
+ * pasarela; entregado y cancelado son estados finales.
+ */
+const TRANSICIONES_PEDIDO: Record<OrderStatus, readonly OrderStatus[]> = {
+  pendiente: ["pagado", "cancelado"],
+  pagado: ["entregado", "cancelado"],
+  entregado: [],
+  cancelado: [],
+};
+
+export function puedeCambiarEstadoPedido(
+  actual: OrderStatus,
+  nuevo: OrderStatus,
+): boolean {
+  return TRANSICIONES_PEDIDO[actual].includes(nuevo);
+}
+
 /** Límite de `Decimal(10,2)` expresado en céntimos. */
 export const MAX_ORDER_TOTAL_CENTS = 9_999_999_999;
 
@@ -222,4 +240,36 @@ export type PedidoDetalle = {
   status: OrderStatus;
   createdAt: Date;
   items: PedidoLinea[];
+};
+
+export type ClientePedidoAdmin = {
+  name: string;
+  email: string;
+  phone: string | null;
+};
+
+export type PedidoAdminResumen = {
+  id: string;
+  total: number;
+  status: OrderStatus;
+  createdAt: Date;
+  client: ClientePedidoAdmin;
+};
+
+export type PedidoAdminLinea = {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+};
+
+export type PedidoAdminDetalle = {
+  id: string;
+  total: number;
+  status: OrderStatus;
+  createdAt: Date;
+  client: ClientePedidoAdmin;
+  items: PedidoAdminLinea[];
 };

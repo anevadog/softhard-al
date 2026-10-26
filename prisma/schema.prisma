@@ -75,6 +75,15 @@ enum OrderStatus {
   cancelado
 }
 
+/// Motivo de un movimiento del libro de stock.
+enum StockMovementReason {
+  stock_inicial
+  venta
+  cancelacion_pedido
+  reposicion
+  ajuste
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -85,9 +94,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  requests ServiceRequest[] @relation("ClientRequests")
-  assigned ServiceRequest[] @relation("AssignedRequests")
-  orders   Order[]
+  requests       ServiceRequest[] @relation("ClientRequests")
+  assigned       ServiceRequest[] @relation("AssignedRequests")
+  orders         Order[]
+  stockMovements StockMovement[]
 
   @@index([role])
   @@map("users")
@@ -166,7 +176,8 @@ model Product {
   category    ProductCategory
   active      Boolean         @default(true)
 
-  orderItems OrderItem[]
+  orderItems     OrderItem[]
+  stockMovements StockMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -191,7 +202,8 @@ model Order {
   /// pedidos creados fuera del checkout (por ejemplo, una importacion futura).
   idempotencyKey String?
 
-  items OrderItem[]
+  items          OrderItem[]
+  stockMovements StockMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -217,6 +229,32 @@ model OrderItem {
   @@unique([orderId, productId])
   @@index([productId])
   @@map("order_items")
+}
+
+/// Libro de movimientos de stock. Invariante: `Product.stock` es la suma de
+/// `variation` de todos sus movimientos. `userId` nulo representa sistema,
+/// migración o seed; `orderId` nulo indica un movimiento sin pedido asociado.
+model StockMovement {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  variation Int
+  reason    StockMovementReason
+
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([orderId])
+  @@map("stock_movements")
 }
 
 /// Configuración de negocio. Fila única: id fijo = 1.

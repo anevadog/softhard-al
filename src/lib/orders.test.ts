@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_ORDER_TOTAL_CENTS,
   etiquetaEstadoPedido,
+  puedeCambiarEstadoPedido,
   precioDesdeCentimos,
   prepararPedido,
   type ProductoParaPedido,
@@ -122,5 +123,44 @@ describe("preparación de pedidos", () => {
     expect(etiquetaEstadoPedido("pagado")).toBe("Pagado");
     expect(etiquetaEstadoPedido("entregado")).toBe("Entregado");
     expect(etiquetaEstadoPedido("cancelado")).toBe("Cancelado");
+  });
+});
+
+describe("transiciones de pedido", () => {
+  it("permite pendiente → pagado y pendiente → cancelado", () => {
+    expect(puedeCambiarEstadoPedido("pendiente", "pagado")).toBe(true);
+    expect(puedeCambiarEstadoPedido("pendiente", "cancelado")).toBe(true);
+  });
+
+  it("permite pagado → entregado y pagado → cancelado", () => {
+    expect(puedeCambiarEstadoPedido("pagado", "entregado")).toBe(true);
+    expect(puedeCambiarEstadoPedido("pagado", "cancelado")).toBe(true);
+  });
+
+  it("rechaza retrocesos y saltos no permitidos", () => {
+    expect(puedeCambiarEstadoPedido("pendiente", "entregado")).toBe(false);
+    expect(puedeCambiarEstadoPedido("pagado", "pendiente")).toBe(false);
+    expect(puedeCambiarEstadoPedido("entregado", "pagado")).toBe(false);
+    expect(puedeCambiarEstadoPedido("cancelado", "pendiente")).toBe(false);
+  });
+
+  it("trata entregado y cancelado como finales", () => {
+    for (const estado of ["entregado", "cancelado"] as const) {
+      expect(puedeCambiarEstadoPedido(estado, "pendiente")).toBe(false);
+      expect(puedeCambiarEstadoPedido(estado, "pagado")).toBe(false);
+      expect(puedeCambiarEstadoPedido(estado, "entregado")).toBe(false);
+      expect(puedeCambiarEstadoPedido(estado, "cancelado")).toBe(false);
+    }
+  });
+
+  it("rechaza cambiar al mismo estado", () => {
+    for (const estado of [
+      "pendiente",
+      "pagado",
+      "entregado",
+      "cancelado",
+    ] as const) {
+      expect(puedeCambiarEstadoPedido(estado, estado)).toBe(false);
+    }
   });
 });

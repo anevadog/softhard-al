@@ -5,6 +5,7 @@ import {
   MAX_CART_QUANTITY,
   MAX_PRODUCT_ID_LENGTH,
 } from "@/lib/cart";
+import { ORDER_STATUSES } from "@/lib/orders";
 
 export const checkoutItemSchema = z.object({
   productId: z
@@ -54,3 +55,43 @@ export const checkoutSchema = z
   }));
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+const MAX_CANCELLATION_REASON_LENGTH = 500;
+
+export const orderIdSchema = z
+  .string()
+  .trim()
+  .min(1, "Pedido no válido")
+  .max(64, "Pedido no válido");
+
+export const cambiarEstadoPedidoSchema = z
+  .object({
+    orderId: orderIdSchema,
+    estadoEsperado: z.enum(ORDER_STATUSES, { error: "Estado no válido" }),
+    estadoNuevo: z.enum(ORDER_STATUSES, { error: "Estado no válido" }),
+    motivo: z
+      .string()
+      .trim()
+      .max(
+        MAX_CANCELLATION_REASON_LENGTH,
+        `El motivo no puede superar ${MAX_CANCELLATION_REASON_LENGTH} caracteres`,
+      )
+      .transform((value) => (value === "" ? null : value)),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.estadoEsperado === "pagado" &&
+      value.estadoNuevo === "cancelado" &&
+      value.motivo === null
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["motivo"],
+        message: "Indica el motivo de la cancelación",
+      });
+    }
+  });
+
+export type CambiarEstadoPedidoInput = z.infer<
+  typeof cambiarEstadoPedidoSchema
+>;

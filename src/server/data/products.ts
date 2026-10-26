@@ -1,6 +1,7 @@
 import type { ProductCategory } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import type { ProductoAdmin, ProductoPublico } from "@/lib/products";
+import { crearMovimientoStockInicial } from "@/server/data/stock-movements";
 
 export type DatosProducto = {
   name: string;
@@ -10,6 +11,9 @@ export type DatosProducto = {
   imageUrl: string | null;
   category: ProductCategory;
 };
+
+/** La edición nunca incluye stock: se cambia mediante movimientos. */
+export type DatosProductoEdicion = Omit<DatosProducto, "stock">;
 
 const PRODUCTO_SELECT = {
   id: true,
@@ -139,24 +143,41 @@ export async function obtenerProductoAdmin(
 export async function crearProducto(
   datos: DatosProducto,
 ): Promise<{ id: string }> {
-  return prisma.product.create({
-    data: {
-      ...datos,
-      price: datos.price.toFixed(2),
-    },
-    select: { id: true },
+  return prisma.$transaction(async (tx) => {
+    const producto = await tx.product.create({
+      data: {
+        name: datos.name,
+        description: datos.description,
+        price: datos.price.toFixed(2),
+        stock: datos.stock,
+        imageUrl: datos.imageUrl,
+        category: datos.category,
+      },
+      select: { id: true, stock: true },
+    });
+
+    await crearMovimientoStockInicial(tx, {
+      productId: producto.id,
+      stock: producto.stock,
+      note: "Stock inicial del alta",
+    });
+
+    return { id: producto.id };
   });
 }
 
 export async function actualizarProducto(
   id: string,
-  datos: DatosProducto,
+  datos: DatosProductoEdicion,
 ): Promise<boolean> {
   const resultado = await prisma.product.updateMany({
     where: { id, active: true },
     data: {
-      ...datos,
+      name: datos.name,
+      description: datos.description,
       price: datos.price.toFixed(2),
+      imageUrl: datos.imageUrl,
+      category: datos.category,
     },
   });
 

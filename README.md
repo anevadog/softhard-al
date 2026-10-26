@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `183 tests`
+`Fase 1 completada` · `Fase 2 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `258 tests`
 
 ## Capturas
 
@@ -44,7 +44,7 @@ SoftHard A&L es una aplicación full stack que cubre el ciclo completo de una re
 3. El encargado revisa la solicitud, emite un presupuesto y gestiona su estado.
 4. El cliente acepta o rechaza el presupuesto dentro del plazo y ve el importe final que le corresponde.
 
-La Fase 2 ya está en marcha: el catálogo público, el panel interno de productos, el carrito local y el checkout con historial de pedidos están disponibles. La ficha de detalle de producto llega en una tarea posterior.
+La Fase 2 está completada: catálogo público, ficha de producto, panel interno de productos, carrito local, checkout con historial de pedidos, gestión administrativa de pedidos y libro de stock con ajustes e historial.
 
 ## Funcionalidad
 
@@ -70,23 +70,29 @@ La Fase 2 ya está en marcha: el catálogo público, el panel interno de product
 - Creación del presupuesto con vista previa del importe final.
 - Cambio manual de estado entre los 8 estados del flujo.
 
-### Fase 2 (en curso)
+### Fase 2 (completada)
 
 - Catálogo público en `/productos`, accesible sin iniciar sesión.
 - Filtros por categoría; cada tarjeta muestra precio, stock y aviso de producto agotado.
+- Ficha pública en `/productos/[id]` con imagen, descripción, precio, disponibilidad y acceso al carrito.
 - Carrito en `/carrito` con persistencia en LocalStorage, contador de unidades en la cabecera, control de cantidades, subtotales y total.
 - El carrito revalida precios y stock en servidor, respeta la disponibilidad y retira productos agotados o inactivos con aviso.
 - El navegador solo guarda `productId` y `quantity`; nunca precios ni copias del producto.
 - Catálogo interno en `/admin/productos` con listado, precio, stock y categoría.
-- Creación y edición de productos con validación Zod en servidor.
+- Alta de productos con stock inicial y edición sin campo de stock: el stock solo cambia por movimientos.
 - Borrado lógico: el producto se archiva y deja de mostrarse en el catálogo.
-- Solo `encargado` y `admin` acceden al panel; `cliente` y `trabajador` son redirigidos.
 - Seis productos de demostración creados por el seed, uno de ellos agotado.
+- Solo `encargado` y `admin` acceden al panel; `cliente` y `trabajador` son redirigidos.
 - Checkout desde `/carrito`: los visitantes inician sesión y vuelven al carrito sin perder productos; los clientes crean un pedido con el total calculado en servidor.
 - El stock se descuenta en una transacción atómica. Si una línea no tiene existencias, no se crea el pedido y el carrito se ajusta al stock real.
 - Clave de idempotencia por usuario para evitar pedidos duplicados por doble clic o reintentos.
 - Página de éxito/detalle en `/app/pedidos/[id]` e historial en `/app/pedidos`, filtrado por propietario.
-- Los pedidos nacen en estado `pendiente`; la pasarela de pago y la gestión administrativa de pedidos quedan para fases posteriores.
+- Libro de stock con `stock_inicial`, `venta`, `cancelacion_pedido`, `reposicion` y `ajuste`; la invariante `stock = suma de movimientos` se mantiene en la misma transacción.
+- Ajuste manual de stock solo para `encargado` y `admin`, con motivo, variación, nota, vista previa y rechazo de stock negativo. Historial de los últimos 10 movimientos en la ficha del producto.
+- Panel `/admin/pedidos` con filtro por estado, contadores, cliente, fecha, total y estado; detalle con líneas a precio congelado y total.
+- Transiciones `pendiente → pagado | cancelado` y `pagado → entregado | cancelado`, aplicadas con actualización condicional sobre el estado esperado.
+- Cancelación transaccional: repone todas las líneas (también archivadas), crea un movimiento positivo por línea y no repone dos veces. Cancelar un pedido pagado exige motivo y avisa de que no hay reembolso.
+- Los pedidos nacen en estado `pendiente`; «pagado» se marca a mano porque no hay pasarela de pago.
 
 ## Stack tecnológico
 
@@ -186,10 +192,10 @@ El seed es idempotente y crea cuatro cuentas con la misma contraseña: **`Demo12
 |---|---|---|
 | `cliente@demo.local` | cliente | `/app` |
 | `trabajador@demo.local` | trabajador | `/app` (sin acceso al panel) |
-| `encargado@demo.local` | encargado | `/admin` (solicitudes y productos) |
-| `admin@demo.local` | admin | `/admin` (solicitudes y productos) |
+| `encargado@demo.local` | encargado | `/admin` (solicitudes, pedidos, productos y stock) |
+| `admin@demo.local` | admin | `/admin` (solicitudes, pedidos, productos y stock) |
 
-En la Fase 1, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico y **7 días** de validez del presupuesto) y seis productos de demostración para el catálogo.
+En el panel, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico y **7 días** de validez del presupuesto) y seis productos de demostración para el catálogo.
 
 ## Scripts
 
@@ -226,18 +232,19 @@ src/
     cart/                  provider, contador y vista del carrito
     orders/                badge de estado de pedido
     service-requests/      solicitudes, presupuestos y decisión
-    admin/                 solicitudes y CRUD de productos
+    admin/                 solicitudes, pedidos, productos y stock
   lib/
     auth.ts, authz.ts      autenticación y permisos
     navigation.ts          callback interno seguro tras login/registro
-    orders.ts              estados, tipos y cálculo puro de pedidos
+    orders.ts              estados, transiciones, tipos y cálculo puro de pedidos
+    stock.ts               motivos, límites y textos del libro de stock
     quotes.ts              reglas puras de importes y expiración
     products.ts            categorías y tipos del catálogo
     catalog.ts             filtros y textos de stock del catálogo público
     cart.ts                persistencia, stock e importes del carrito
     validations/           esquemas Zod
   server/
-    actions/               Server Actions (mutaciones, carrito y checkout)
+    actions/               Server Actions (mutaciones, carrito, checkout, panel y stock)
     data/                  acceso a datos con control de propiedad
 prisma/
   schema.prisma
@@ -299,6 +306,36 @@ El total y los precios unitarios se calculan en servidor a partir de los product
 actuales. `OrderItem.price` congela el precio del momento de la compra para que un
 cambio posterior del catálogo no altere el histórico.
 
+### Libro de stock y ajustes manuales
+
+`Product.stock` no se edita directamente: es la suma de `StockMovement.variation`.
+Cada venta, cancelación, reposición, ajuste o alta con stock genera un movimiento en
+la misma transacción que cambia el stock. La migración de 6A dejó un `stock_inicial`
+para cada producto con stock mayor que cero, incluidos los archivados.
+
+Los ajustes manuales están limitados a `encargado` y `admin`, revalidados en servidor.
+La reposición es positiva; el ajuste admite signo y exige nota; ambos rechazan cero,
+valores no enteros y más de **10.000 unidades** por movimiento. La actualización usa
+una condición atómica para no dejar stock negativo y el movimiento se guarda en la
+misma transacción. La ficha del panel muestra los últimos 10 movimientos y enlaza al
+pedido cuando existe.
+
+**Deuda conocida:** un pedido pendiente retiene el stock descontado hasta que se
+cancela; no hay liberación automática ni reserva al añadir al carrito.
+
+### Gestión administrativa de pedidos
+
+Las transiciones viven en una única función pura: `pendiente → pagado | cancelado` y
+`pagado → entregado | cancelado`; `entregado` y `cancelado` son finales. Cada cambio
+se aplica con `updateMany` condicional sobre el estado esperado, de modo que dos
+pestañas o un doble clic no se pisan: la perdedora recibe un mensaje para recargar.
+
+La cancelación lee las líneas dentro de la transacción y solo después de que la
+actualización condicional haya cambiado una fila. Repone todas las líneas, incluidas
+las de productos archivados, y crea un movimiento positivo `cancelacion_pedido` por
+línea, ligado al pedido y al usuario. Una segunda cancelación no repone stock. Si el
+pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso.
+
 ### Seguridad y permisos
 
 - **Contraseñas** con `bcrypt` (coste 12). El registro público siempre asigna el rol `cliente`; Zod descarta cualquier `role` inyectado.
@@ -312,10 +349,10 @@ cambio posterior del catálogo no altere el histórico.
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **183 tests** en 21 archivos (`npm run test`), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia y callback seguro.
-- Los tests de la transacción usan Prisma mockeado; el flujo real de checkout, stock y pedidos se verificó manualmente contra PostgreSQL.
+- **258 tests** en 29 archivos (`npm run test`), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones y cancelación con reposición.
+- Los tests de la transacción usan Prisma mockeado; el flujo real de checkout, stock, ajustes y pedidos se verificó manualmente contra PostgreSQL.
 - TypeScript estricto y ESLint en cada cambio.
-- Pendiente como deuda: tests de integración automáticos con base de datos y de los flujos completos de permisos.
+- **Deuda conocida:** no hay tests de integración automáticos con base de datos real. Los pedidos pendientes retienen stock hasta que se cancelan y no se libera automáticamente.
 
 ### Server Components y Server Actions
 
@@ -339,18 +376,18 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] Tests de la lógica de negocio.
 - [x] README con instrucciones.
 
-### Fase 2 — en curso
+### Fase 2 — completada
 
 - [x] Modelo `Product` y migración.
 - [x] CRUD interno de productos en `/admin/productos`.
 - [x] Productos demo en el seed y tests de validación/acciones.
 - [x] Catálogo público con filtros por categoría y estados de stock.
+- [x] Fichas públicas de producto.
 - [x] Carrito local con contador, cantidades, total y revalidación de precios/stock.
 - [x] Checkout autenticado, pedidos, descuento atómico de stock e idempotencia.
 - [x] Historial y detalle de pedidos del cliente.
-- [ ] Fichas de producto.
-- [ ] Gestión administrativa de pedidos y stock.
-- [ ] Integración del catálogo con el área de cliente.
+- [x] Libro de stock, ajustes manuales e historial por producto.
+- [x] Gestión administrativa de pedidos, transiciones y cancelación con reposición.
 
 ### Fase 3 — futuro
 
@@ -362,15 +399,17 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 
 Estas funciones quedan fuera del alcance actual (Fase 1 y tienda de la Fase 2):
 
-- Pagos reales y pasarela de pago.
-- Gestión administrativa de pedidos, cancelación y reposición de stock.
-- Reserva de stock al añadir al carrito o descuento antes de crear el pedido.
+- Pagos reales, pasarela de pago, reembolsos y facturación.
+- Historial de estados de pedido y de solicitud más allá del estado actual.
+- Integración del catálogo con el área de cliente (recomendaciones o personalización).
+- Reserva de stock al añadir al carrito o liberación automática de pedidos pendientes.
 - Sincronización del carrito con la cuenta al iniciar sesión.
 - Cupones, envíos e impuestos.
 - Tickets internos y fichaje de horas.
-- Contabilidad y facturación.
+- Contabilidad.
 - Emails automáticos y notificaciones.
 - Rate limiting en el login (deuda técnica anotada).
+- Tests de integración automáticos con base de datos real (deuda técnica anotada).
 
 ## Documentación
 

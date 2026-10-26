@@ -4,8 +4,8 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
 - **Fase 1 completada (tareas 1–8)**.
-- **Fase 2, tareas 1–5 completadas**: CRUD `/admin/productos`, catálogo `/productos`, carrito local `/carrito`, checkout/pedidos y ficha pública.
-- Push final completado; `main` sincronizado con `origin/main`. Siguiente: stock administrativo con libro de movimientos (Tarea 6). Specs en `docs/specs/fase-1.md` y `fase-2.md`.
+- **Fase 2 completada (tareas 1–7)**: catálogo, ficha, carrito, checkout/pedidos, libro de stock, edición/ajustes y gestión de pedidos.
+- `main` con 4 commits locales pendientes de push; cambios de 6A, 6B y 7 sin commit. Specs en `docs/specs/`.
 
 ## Stack efectivo
 - Node 24.22.1 LTS · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7
@@ -17,35 +17,34 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Autenticación
 - `auth.config.ts` edge-safe; `auth.ts` añade Credentials. JWT 7 días; rol en token y `/admin` **revalida en BD**.
-- `authz.ts` decide (`puedeAcceder`): `/app` cualquier sesión, `/admin` solo staff; middleware + layouts.
-- Registro público siempre `cliente`; bcrypt ≤ 72 bytes; demo `@demo.local` con `Demo1234!`.
-- `navigation.ts` valida callback interno tras login/registro; rechaza URLs externas y el panel para clientes.
+- `authz.ts`: `/app` cualquier sesión, `/admin` solo staff; middleware + layouts. Registro siempre `cliente`; demo `@demo.local` / `Demo1234!`.
+- `navigation.ts` valida callback interno; rechaza URLs externas y el panel para clientes.
 
 ## Solicitudes y panel
 - Landing en `(public)`; copy en `src/lib/site-content.ts`; validación Zod, datos y acciones en `src/lib/validations/` y `src/server/`.
-- `clientId` sale de la sesión; Zod descarta campos inyectados. Formulario controlado con `onSubmit` + `useTransition`.
 - `/app/solicitudes` filtra por cliente; `/admin` redirige a `/admin/solicitudes`; `requerirStaff()` revalida rol en BD.
-- Presupuesto: X e N de `Config`; X copiada en `diagnosticFee`; `finalAmount = presupuesto − X`; rechazo → `X`.
-- Un presupuesto por solicitud; importes en céntimos; expiración perezosa sin cron.
+- Presupuesto: X e N de `Config`; X copiada en `diagnosticFee`; `finalAmount = presupuesto − X`; rechazo → `X`; expiración perezosa.
 
-## Productos y carrito
-- Enum fijo `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl` opcional y `active` lógico; datos/acciones con `requerirStaff()`.
-- Catálogo público filtra `active`, ordena `createdAt desc`, acepta categoría; filtros por URL en `src/lib/catalog.ts`.
-- Ficha `/productos/[id]`: solo activos, 404 si no existe/archivado; conserva `?categoria`, `<img>` y botón de carrito reutilizado.
-- Stock: 0 = «Agotado»; 1–3 avisan; ≥4 indican unidades. Seed idempotente con 6 productos (uno agotado).
-- Carrito local `softhard-carrito-v1`: solo IDs/cantidades, contador, total en céntimos, revalidación de precios/stock y ajuste con aviso.
-- Formulario de producto: precio coma/punto, URL http(s) o `null`, placeholder; borrado lógico.
+## Productos, carrito y pedidos
+- Enum `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl` opcional y `active` lógico; `/productos/[id]` solo activos.
+- Carrito local `softhard-carrito-v1`: solo IDs/cantidades, revalidación de precio/stock, contador y checkout autenticado.
+- `OrderStatus`: `pendiente`, `pagado`, `entregado`, `cancelado`; `crearPedidoCliente` congela precios, total `Decimal(10,2)`, `updateMany` condicional e idempotencia UUID.
+- `/app/pedidos` filtra `userId`; ajeno → 404. Checkout descuenta stock; el pendiente lo retiene hasta cancelarse.
 
-## Pedidos
-- `OrderStatus`: `pendiente`, `pagado`, `entregado`, `cancelado`; los pedidos nuevos nacen `pendiente`.
-- `crearPedidoCliente`: precios congelados en `OrderItem`, total `Decimal(10,2)`, transacción con `updateMany` condicional por producto ordenado por id; si falla, rollback completo.
-- `idempotencyKey` UUID único por usuario: doble clic/reintento devuelve el pedido existente. Carrito se vacía solo tras éxito.
-- `/app/pedidos` historial y `/app/pedidos/[id]` detalle/éxito; filtran `userId`, pedido ajeno → 404. Visitante → `/login?callbackUrl=/carrito`.
-- Sin pasarela de pago ni panel admin de pedidos en esta tarea.
+## Libro de stock (6A/6B)
+- `StockMovementReason`: `stock_inicial`, `venta`, `cancelacion_pedido`, `reposicion`, `ajuste`; `variation` entero ≠ 0 y signo coherente.
+- Invariante: `Product.stock = suma de StockMovement.variation`; `productId Restrict`, `orderId`/`userId` `SetNull`.
+- Alta fija stock inicial; edición no toca stock. Ajuste manual solo staff: reposición >0, ajuste ± con nota, máximo 10.000, `updateMany` condicional sin negativos y movimiento en transacción.
+- Historial de 10 movimientos en ficha con usuario/Sistema, pedido abreviado y enlace a `/admin/pedidos/[id]`.
 
-## Tests y próximos pasos
-- **198 tests** en 23 archivos; `typecheck`, `lint` y `build` limpios. QA manual: checkout/stock e historial; ficha válida, filtro, agotado, 404 e id largo.
-- [x] Fase 1 y Fase 2 tareas 1–5; push final completado. Seed solo con host local o `SEED_ALLOW_PRODUCTION=true`; AGENTS corregido.
-- [ ] Siguiente: Tarea 6, stock administrativo con libro de movimientos.
-- [ ] Deuda: rate limiting en login, emails y tests de integración con BD.
-- Aprendizajes: Prisma 7 exige driver adapter y `output`; `migrate dev` puede no regenerar el cliente. Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.
+## Gestión de pedidos (7)
+- `/admin/pedidos` con filtro/contadores; detalle con cliente, líneas congeladas y total; inexistente → 404.
+- Transición pura: `pendiente → pagado | cancelado`, `pagado → entregado | cancelado`; finales `entregado`/`cancelado`; `updateMany` condicional contra carreras.
+- Cancelación: actualiza estado, luego lee líneas y repone todas (archivadas incluidas) con movimiento positivo por línea; segunda cancelación no repone; pagado exige motivo y aviso de no reembolso.
+
+## Tests, QA y deuda
+- **258 tests** en 29 archivos; `typecheck`, `lint`, `build` limpios.
+- QA 6B: reposición 19→21, ajuste -1→20, rechazo -10.000 sin cambio; consistencia 0 filas.
+- QA 7: pedido A pagado; pedido B 8→6→8 al cancelar; segunda cancelación sin cambio; consistencia 0 filas.
+- Deuda: pedidos pendientes retienen stock hasta cancelar; sin tests de integración con BD real; rate limiting y emails pendientes.
+- Aprendizajes: Prisma 7 exige driver adapter y `output`; Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.

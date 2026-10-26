@@ -44,6 +44,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 Solicitudes
               </Link>
               <Link
+                href="/admin/pedidos"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Pedidos
+              </Link>
+              <Link
                 href="/admin/productos"
                 className="text-slate-600 transition-colors hover:text-slate-900"
               >
