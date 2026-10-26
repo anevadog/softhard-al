@@ -97,4 +97,14 @@ describe("consultas de inactividad", () => {
     });
     expect(resultado.elementos[0]).not.toHaveProperty("assignmentHistory");
   });
+
+  it("sin tope devuelve la lista completa para los reportes", async () => {
+    await listarReparacionesSinActividad(LIMITE, null);
+    expect(args()).not.toHaveProperty("take");
+
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([]);
+    await listarDevueltasSinResponsable(null);
+    expect(args()).not.toHaveProperty("take");
+  });
 });

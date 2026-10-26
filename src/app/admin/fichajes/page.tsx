@@ -1,17 +1,27 @@
 import Link from "next/link";
 
+import { WeekNav } from "@/components/admin/week-nav";
 import { StaffWorkLogActions } from "@/components/admin/work-log-staff-actions";
-import { etiquetaReparacionFichaje } from "@/components/taller/work-log-list";
+import { WorkLogList, etiquetaReparacionFichaje } from "@/components/taller/work-log-list";
 import { formatearFechaHora } from "@/lib/format";
-import { excedeHorasAbierto, formatearDuracion, minutosFichaje } from "@/lib/work-logs";
+import { minutosPorTrabajador } from "@/lib/reports";
+import {
+  excedeHorasAbierto,
+  formatearDuracion,
+  minutosFichaje,
+  semanaDesdeClave,
+  totalMinutos,
+} from "@/lib/work-logs";
 import { requerirStaff } from "@/server/authorization";
+import { listarTrabajadoresAsignables } from "@/server/data/assignments";
+import { listarFichajesSemana } from "@/server/data/reports";
 import {
   listarFichajesAbiertos,
   obtenerHorasFichajeAbierto,
 } from "@/server/data/work-logs";
 
 export const metadata = {
-  title: "Fichajes abiertos",
+  title: "Fichajes",
 };
 
 const AVISOS = {
@@ -22,27 +32,40 @@ const AVISOS = {
 export default async function FichajesAbiertosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cerrado?: string; corregido?: string }>;
+  searchParams: Promise<{
+    cerrado?: string;
+    corregido?: string;
+    semana?: string;
+    trabajador?: string;
+  }>;
 }) {
-  const { cerrado, corregido } = await searchParams;
+  const { cerrado, corregido, semana: claveSemana, trabajador } = await searchParams;
   await requerirStaff();
 
-  const [abiertos, horasAviso] = await Promise.all([
+  const ahora = new Date();
+  const semana = semanaDesdeClave(claveSemana, ahora);
+  const trabajadores = await listarTrabajadoresAsignables();
+  // Un id desconocido o ajeno en la URL equivale a "Todos".
+  const filtro = trabajadores.find((item) => item.id === trabajador) ?? null;
+
+  const [abiertos, horasAviso, fichajesSemana] = await Promise.all([
     listarFichajesAbiertos(),
     obtenerHorasFichajeAbierto(),
+    listarFichajesSemana(semana, filtro?.id ?? null),
   ]);
-  const ahora = new Date();
+  const porTrabajador = minutosPorTrabajador(
+    fichajesSemana,
+    filtro ? [filtro] : trabajadores,
+    ahora,
+  );
   const aviso = cerrado === "1" ? AVISOS.cerrado : corregido === "1" ? AVISOS.corregido : null;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Fichajes abiertos
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Fichajes</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Trabajadores que están fichados ahora. Se destacan los que llevan más de{" "}
-          {horasAviso} horas abiertos. Las horas se muestran en hora de Madrid.
+          Las horas se muestran en hora de Madrid.
         </p>
       </div>
 
@@ -54,6 +77,11 @@ export default async function FichajesAbiertosPage({
           {aviso}
         </p>
       ) : null}
+
+      <h2 className="text-lg font-semibold text-slate-900">Abiertos ahora</h2>
+      <p className="-mt-4 text-sm text-slate-600">
+        Se destacan los que llevan más de {horasAviso} horas abiertos.
+      </p>
 
       {abiertos.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
@@ -106,6 +134,77 @@ export default async function FichajesAbiertosPage({
           })}
         </ul>
       )}
+
+      <section aria-labelledby="fichajes-semana" className="space-y-4">
+        <h2 id="fichajes-semana" className="text-lg font-semibold text-slate-900">
+          Fichajes de la semana
+        </h2>
+
+        <form method="get" className="flex flex-wrap items-end gap-3 text-sm">
+          <input type="hidden" name="semana" value={semana.clave} />
+          <div>
+            <label htmlFor="trabajador" className="block font-medium text-slate-700">
+              Trabajador
+            </label>
+            <select
+              id="trabajador"
+              name="trabajador"
+              defaultValue={filtro?.id ?? ""}
+              className="mt-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"
+            >
+              <option value="">Todos</option>
+              {trabajadores.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="rounded-lg bg-slate-900 px-4 py-2 font-medium text-white transition-colors hover:bg-slate-800"
+          >
+            Filtrar
+          </button>
+        </form>
+
+        <WeekNav
+          ruta="/admin/fichajes"
+          semana={semana}
+          ahora={ahora}
+          parametros={{ trabajador: filtro?.id }}
+        />
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <p className="text-slate-600">
+            Total {filtro ? `de ${filtro.name}` : "del taller"}
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">
+            {formatearDuracion(totalMinutos(fichajesSemana, ahora))}
+          </p>
+          <ul className="mt-3 space-y-1 border-t border-slate-100 pt-3">
+            {porTrabajador.map((fila) => (
+              <li key={fila.id} className="flex justify-between gap-3">
+                <span className="text-slate-700">{fila.name}</span>
+                <span className="font-medium text-slate-900">
+                  {formatearDuracion(fila.minutos)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <WorkLogList
+            fichajes={fichajesSemana}
+            ahora={ahora}
+            mostrarTrabajador
+            mostrarReparacion
+            vacio="No hay fichajes en esta semana."
+            acciones={(fichaje) => <StaffWorkLogActions fichaje={fichaje} origen="abiertos" />}
+          />
+        </div>
+      </section>
     </div>
   );
 }

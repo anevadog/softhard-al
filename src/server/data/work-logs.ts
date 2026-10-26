@@ -66,7 +66,7 @@ export type ResultadoFichaje =
   | { ok: true; requestId: string | null }
   | { ok: false; motivo: MotivoFichaje };
 
-const SELECT_FICHAJE = {
+export const SELECT_FICHAJE = {
   id: true,
   startedAt: true,
   endedAt: true,

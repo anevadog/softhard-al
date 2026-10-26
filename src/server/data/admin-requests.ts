@@ -28,11 +28,21 @@ export async function obtenerConfig(): Promise<ConfigNegocio | null> {
   };
 }
 
+/**
+ * Listado del panel. `soloFaltasRepuesto` deja solo las reparaciones con alguna
+ * falta de repuesto sin atender, filtrando en la consulta.
+ */
 export async function listarSolicitudesAdmin(
   estado?: ServiceStatus,
+  { soloFaltasRepuesto = false }: { soloFaltasRepuesto?: boolean } = {},
 ): Promise<SolicitudAdminResumen[]> {
   const solicitudes = await prisma.serviceRequest.findMany({
-    where: estado ? { status: estado } : undefined,
+    where: {
+      ...(estado ? { status: estado } : {}),
+      ...(soloFaltasRepuesto
+        ? { notes: { some: { type: "falta_repuesto", resolvedAt: null } } }
+        : {}),
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -104,6 +114,17 @@ export async function obtenerSolicitudAdmin(
           expiresAt: true,
           decidedAt: true,
           createdAt: true,
+        },
+      },
+      statusHistory: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          createdAt: true,
+          fromStatus: true,
+          toStatus: true,
+          reason: true,
+          changedBy: { select: { name: true } },
         },
       },
       assignmentHistory: {

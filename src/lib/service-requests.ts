@@ -5,6 +5,7 @@ import type {
   ServiceStatus,
   TimeSlot,
 } from "@/generated/prisma/enums";
+import type { EstadoHistorialTaller } from "@/lib/worker-requests";
 
 /**
  * Todos los estados en el orden del flujo. Base para etiquetas y contadores.
@@ -158,6 +159,7 @@ export type SolicitudAdminDetalle = {
   client: { name: string; email: string; phone: string | null };
   assignee: { id: string; name: string; email: string } | null;
   quote: PresupuestoAdmin | null;
+  statusHistory: EstadoHistorialTaller[];
   assignmentHistory: AsignacionHistorial[];
 };
 

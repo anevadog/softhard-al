@@ -149,4 +149,16 @@ describe("listarSolicitudesAdmin", () => {
     expect(fila?.faltasRepuestoPendientes).toBe(2);
     expect(fila).not.toHaveProperty("_count");
   });
+
+  it("el filtro de faltas de repuesto va en la consulta y se combina con el estado", async () => {
+    vi.mocked(prisma.serviceRequest.findMany).mockClear();
+    vi.mocked(prisma.serviceRequest.findMany).mockResolvedValue([]);
+
+    await listarSolicitudesAdmin("en_reparacion", { soloFaltasRepuesto: true });
+
+    expect(vi.mocked(prisma.serviceRequest.findMany).mock.calls[0]?.[0]?.where).toEqual({
+      status: "en_reparacion",
+      notes: { some: { type: "falta_repuesto", resolvedAt: null } },
+    });
+  });
 });

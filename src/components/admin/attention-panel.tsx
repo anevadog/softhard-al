@@ -32,9 +32,17 @@ export async function AttentionPanel() {
       aria-labelledby="requieren-atencion"
       className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm"
     >
-      <h2 id="requieren-atencion" className="text-base font-semibold text-amber-950">
-        Requieren atención
-      </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="requieren-atencion" className="text-base font-semibold text-amber-950">
+          Requieren atención
+        </h2>
+        <Link
+          href="/admin/reportes#sin-actividad"
+          className="text-sm font-medium text-amber-900 underline"
+        >
+          Ver todas en reportes
+        </Link>
+      </div>
       <div className="mt-3 grid gap-4 md:grid-cols-2">
         <Bloque
           titulo={`Sin actividad desde hace más de ${horas} h`}

@@ -20,16 +20,17 @@ export const metadata = {
 export default async function AdminSolicitudesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; repuesto?: string }>;
 }) {
-  const { estado } = await searchParams;
+  const { estado, repuesto } = await searchParams;
   const filtro = SERVICE_STATUSES.find((valor) => valor === estado);
+  const soloFaltasRepuesto = repuesto === "1";
 
   // Expiraciones perezosas: así los contadores y el listado cuadran.
   await expirarPresupuestosVencidos();
 
   const [solicitudes, conteos, faltasPendientes] = await Promise.all([
-    listarSolicitudesAdmin(filtro),
+    listarSolicitudesAdmin(filtro, { soloFaltasRepuesto }),
     contarPorEstado(),
     contarFaltasRepuestoPendientes(),
   ]);
@@ -59,14 +60,22 @@ export default async function AdminSolicitudesPage({
           {faltasPendientes === 1
             ? "Hay 1 falta de repuesto sin atender."
             : `Hay ${faltasPendientes} faltas de repuesto sin atender.`}{" "}
-          Están marcadas en el listado; atiéndelas desde el detalle de cada solicitud.
+          {soloFaltasRepuesto ? (
+            <Link href="/admin/solicitudes" className="font-medium underline">
+              Ver todas las solicitudes
+            </Link>
+          ) : (
+            <Link href="/admin/solicitudes?repuesto=1" className="font-medium underline">
+              Ver solo esas solicitudes
+            </Link>
+          )}
         </p>
       ) : null}
 
       <nav aria-label="Filtrar por estado" className="flex flex-wrap gap-2 text-sm">
         <FiltroLink
           href="/admin/solicitudes"
-          activo={!filtro}
+          activo={!filtro && !soloFaltasRepuesto}
           etiqueta="Todas"
           total={total}
         />
@@ -74,7 +83,7 @@ export default async function AdminSolicitudesPage({
           <FiltroLink
             key={valor}
             href={`/admin/solicitudes?estado=${valor}`}
-            activo={filtro === valor}
+            activo={filtro === valor && !soloFaltasRepuesto}
             etiqueta={SERVICE_STATUS_META[valor].label}
             total={conteos[valor]}
           />

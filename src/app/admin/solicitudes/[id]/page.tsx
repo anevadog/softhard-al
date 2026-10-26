@@ -11,6 +11,7 @@ import { QuoteSummary } from "@/components/service-requests/quote-summary";
 import { StatusBadge } from "@/components/service-requests/status-badge";
 import { NoteForm } from "@/components/taller/note-form";
 import { NoteList } from "@/components/taller/note-list";
+import { StatusHistory } from "@/components/taller/repair-history";
 import { WorkLogList } from "@/components/taller/work-log-list";
 import { formatearFechaCorta, formatearFechaHora } from "@/lib/format";
 import {
@@ -262,6 +263,13 @@ export default async function AdminSolicitudPage({
             vacio="Todavía no hay fichajes en esta reparación."
             acciones={(item) => <StaffWorkLogActions fichaje={item} origen="solicitud" />}
           />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-base font-semibold text-slate-900">Historial de estados</h2>
+        <div className="mt-4">
+          <StatusHistory entradas={solicitud.statusHistory} />
         </div>
       </section>
 

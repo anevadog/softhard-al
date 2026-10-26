@@ -3,15 +3,14 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Fase 1**, **Fase 2** y **3.1–3.6** cerradas con commit (3.5 en `665f332`; 3.6 en el commit `feat(taller)` de avisos). Siguiente: **3.7** vistas y reportes del encargado (plan antes de construir). Specs en `docs/specs/`.
+- **Fases 1, 2 y 3 completas** con commit (3.6 en `232d09a`; 3.7 en el commit `feat(taller)` de reportes). Pendiente: actualizar README con la Fase 3 terminada. Specs en `docs/specs/`.
 
 ## Stack y entorno
 - Node 24.22.1 · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7 · Prisma 7.10.1 + adapter-pg · PostgreSQL 16.15 local (`localhost:5432`, BD `softhard`) · ESLint 9.
 - Auth: next-auth 5.0.0-beta.32 + bcrypt coste 12. Git Bash: `npm`/`npx` normales. `npm run build` ejecuta `migrate deploy`.
 
 ## Autenticación y permisos
-- `auth.config.ts` edge-safe; `auth.ts` Credentials. JWT 7 días; rol en token y revalidación en BD. `authz.ts`: `/app` cualquier sesión; `/admin` staff; `/trabajador` trabajador/encargado/admin.
-- Middleware cubre `/app`, `/admin` y `/trabajador`; `requerirStaff()` y `requerirPersonalTaller()` revalidan rol. Registro siempre `cliente`; demo `@demo.local` / `Demo1234!` (incluye `trabajador@demo.local`); callback interno validado.
+- `auth.config.ts` edge-safe; `auth.ts` Credentials. JWT 7 días; rol en token y revalidación en BD. `authz.ts`: `/app` cualquier sesión; `/admin` staff; `/trabajador` trabajador/encargado/admin. Middleware cubre `/app`, `/admin` y `/trabajador`; `requerirStaff()` y `requerirPersonalTaller()` revalidan rol. Registro siempre `cliente`; demo `@demo.local` / `Demo1234!` (incluye `trabajador@demo.local`); callback interno validado.
 
 ## Solicitudes y panel
 - Landing en `(public)`; copy en `site-content.ts`. `/app/solicitudes` filtra por cliente; ajeno → 404; `/admin` redirige a `/admin/solicitudes`.
@@ -21,14 +20,11 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl?`, `active` lógico; ficha solo activos. Carrito local `softhard-carrito-v1`; checkout revalida precio/stock y congela precios en `OrderItem`. `OrderStatus`; cancelación repone stock con movimientos; idempotencia y `updateMany` condicional. `StockMovement` es libro; `Product.stock = suma(variation)`; ajuste manual solo staff y en transacción.
 
 ## Fase 3.1 / 3.2 — datos, transiciones y asignación
-- 9 estados; `ServiceStatusHistory`, `ServiceAssignmentHistory`, `WorkLog`, `RequestNote`; `lastActivityAt`; `Config.inactiveRequestHours = 48`, `openWorkLogHours = 8`. `WorkLog`: índice parcial `work_logs_open_user_unique` y check `work_logs_end_after_start` (SQL manual, migración `20261026145522_fase3_taller_datos`).
-- Flujo por rol en `lib/service-status.ts`; cambios condicionales con historial, `lastActivityAt` y cierre de fichajes. Asignar/reasignar solo staff; tomar solo aceptada sin responsable y nunca devuelta (`updateMany` condicional); devolver exige motivo, conserva estado y cierra fichaje.
+- 9 estados; `ServiceStatusHistory`, `ServiceAssignmentHistory`, `WorkLog`, `RequestNote`; `lastActivityAt`; `Config.inactiveRequestHours = 48`, `openWorkLogHours = 8`. `WorkLog`: índice parcial `work_logs_open_user_unique` y check `work_logs_end_after_start` (SQL manual, migración `20261026145522_fase3_taller_datos`). Flujo por rol en `lib/service-status.ts`; cambios condicionales con historial, `lastActivityAt` y cierre de fichajes. Asignar/reasignar solo staff; tomar solo aceptada sin responsable y nunca devuelta (`updateMany` condicional); devolver exige motivo, conserva estado y cierra fichaje.
 
 ## Fase 3.3 — panel del trabajador
-- `/trabajador`: mis reparaciones agrupadas (aceptada → en_reparacion → esperando_repuesto → lista, más antigua primero) y "Para tomar" (máx. 50) solo para trabajador; staff ve enlace al panel.
-- `/trabajador/reparaciones/[id]`: secciones Equipo y avería, Visita, Acciones, Historial de estados y de asignaciones (Fichajes de 3.4 y Notas de 3.5 van antes de los historiales). Staff → redirect al detalle admin.
-- Datos en `server/data/worker-requests.ts` con filtro en el `where`; ajena/inexistente → 404; libre → solo lectura con "Tomar", con consulta propia sin historiales ni cliente (tipo unión por `esMia`). Sin email/teléfono.
-- Botones de estado desde `accionesEstadoTrabajador` (`lib/worker-requests.ts`), sin correcciones. Tomar y cambiar estado redirigen al detalle. Componentes en `components/taller/` con `onSubmit` + `useTransition`.
+- `/trabajador`: mis reparaciones agrupadas (aceptada → en_reparacion → esperando_repuesto → lista, más antigua primero) y "Para tomar" (máx. 50) solo para trabajador; staff ve enlace al panel. `/trabajador/reparaciones/[id]`: secciones Equipo y avería, Visita, Acciones, Historial de estados y de asignaciones (Fichajes de 3.4 y Notas de 3.5 van antes de los historiales). Staff → redirect al detalle admin.
+- Datos en `server/data/worker-requests.ts` con filtro en el `where`; ajena/inexistente → 404; libre → solo lectura con "Tomar", con consulta propia sin historiales ni cliente (tipo unión por `esMia`). Sin email/teléfono. Botones de estado desde `accionesEstadoTrabajador` (`lib/worker-requests.ts`), sin correcciones. Tomar y cambiar estado redirigen al detalle. Componentes en `components/taller/` con `onSubmit` + `useTransition`.
 
 ## Fase 3.4 — fichaje
 - Puras en `lib/work-logs.ts` (duración, aviso >N h, semanas lunes–lunes y `datetime-local` en Europe/Madrid sin dependencias); Zod en `validations/work-logs.ts`.
@@ -43,8 +39,12 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - `lib/inactivity.ts` (límite estricto: exactamente en el plazo no avisa) y `server/data/inactivity.ts` con filtros en la consulta, tope 20 y total. Trabajador: aceptada/en_reparacion/esperando_repuesto; panel: también lista, con o sin responsable.
 - Devuelta = sin responsable, no final y con entrada de historial `toAssigneeId` nulo. `WHERE_PARA_TOMAR` (en `worker-requests.ts`) excluye devueltas en "Para tomar", en la toma y en el detalle libre. Aviso en cada página de `/trabajador` (no en el layout) y bloque "Requieren atención" en `/admin/solicitudes`.
 
+## Fase 3.7 — vistas y reportes del encargado
+- `lib/reports.ts` (horas por trabajador con 0 incluidos; por reparación con acumulado) y `server/data/reports.ts`; un fichaje cuenta entero en su semana de inicio. `WeekNav` reutilizable.
+- `/admin/reportes` (4 secciones, avisos sin tope), `/admin/fichajes` con lista semanal filtrable por trabajador, historial de estados en el detalle admin, filtro `?repuesto=1` y "Ver todas" desde "Requieren atención".
+
 ## Tests, QA y deuda
-- **446 tests en 49 archivos**; `typecheck`, `lint` y `build` limpios en 3.6.
-- QA 3.3–3.6 con rollback y 0 residuos (scripts en el scratchpad; 3.6: 13 comprobaciones). Navegador solo vistas sin escritura.
-- Deuda: sin campo de dirección (domicilio); `StatusForm`/`AssignmentForm` usan `useActionState`; detalle admin sin historial de estados (3.7); correcciones de fichaje sin historial completo y sin control de solapes; pedidos pendientes retienen stock; sin tests de integración con BD real; rate limiting/emails.
+- **457 tests en 51 archivos**; `typecheck`, `lint` y `build` limpios en 3.7.
+- QA 3.3–3.7 con rollback y 0 residuos (scripts en el scratchpad; 3.7: 7 comprobaciones con DST y domingo noche). Navegador solo vistas sin escritura.
+- Deuda: sin campo de dirección (domicilio); `StatusForm`/`AssignmentForm` usan `useActionState`; correcciones de fichaje sin historial completo y sin control de solapes; pedidos pendientes retienen stock; sin tests de integración con BD real; rate limiting/emails.
 - Aprendizajes: Prisma 7 exige driver adapter y `output`; Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.

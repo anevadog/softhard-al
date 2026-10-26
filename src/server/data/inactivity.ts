@@ -80,9 +80,13 @@ export async function listarMisReparacionesDescuidadas(
   return { elementos, total };
 }
 
-/** Reparaciones del taller sin actividad, con o sin responsable, para el panel. */
+/**
+ * Reparaciones del taller sin actividad, con o sin responsable, para el panel.
+ * `tope` nulo devuelve la lista completa (página de reportes).
+ */
 export async function listarReparacionesSinActividad(
   limite: Date,
+  tope: number | null = TOPE_AVISOS,
 ): Promise<ListaAvisos<ReparacionAviso>> {
   const where = {
     status: { in: [...ESTADOS_AVISO_PANEL] },
@@ -93,7 +97,7 @@ export async function listarReparacionesSinActividad(
     prisma.serviceRequest.findMany({
       where,
       orderBy: { lastActivityAt: "asc" },
-      take: TOPE_AVISOS,
+      ...(tope === null ? {} : { take: tope }),
       select: SELECT_AVISO,
     }),
     prisma.serviceRequest.count({ where }),
@@ -103,14 +107,14 @@ export async function listarReparacionesSinActividad(
 }
 
 /** Devueltas por un trabajador y aún sin reasignar, con la última devolución. */
-export async function listarDevueltasSinResponsable(): Promise<
-  ListaAvisos<DevueltaSinResponsable>
-> {
+export async function listarDevueltasSinResponsable(
+  tope: number | null = TOPE_AVISOS,
+): Promise<ListaAvisos<DevueltaSinResponsable>> {
   const [filas, total] = await Promise.all([
     prisma.serviceRequest.findMany({
       where: WHERE_DEVUELTA,
       orderBy: { lastActivityAt: "asc" },
-      take: TOPE_AVISOS,
+      ...(tope === null ? {} : { take: tope }),
       select: {
         ...SELECT_AVISO,
         assignmentHistory: {

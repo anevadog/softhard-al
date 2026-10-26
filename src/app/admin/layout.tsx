@@ -27,21 +27,27 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-4">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link href="/admin" className="text-sm font-semibold text-slate-900">
               Panel interno
             </Link>
 
             <nav
               aria-label="Panel interno"
-              className="flex items-center gap-4 text-sm"
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
             >
               <Link
                 href="/admin/solicitudes"
                 className="text-slate-600 transition-colors hover:text-slate-900"
               >
                 Solicitudes
+              </Link>
+              <Link
+                href="/admin/reportes"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Reportes
               </Link>
               <Link
                 href="/admin/fichajes"
