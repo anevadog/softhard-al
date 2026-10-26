@@ -147,9 +147,10 @@ export async function cambiarEstadoAction(
   revalidatePath("/app/solicitudes");
   revalidatePath(`/app/solicitudes/${parsed.data.requestId}`);
   revalidatePath("/trabajador");
+  revalidatePath(`/trabajador/reparaciones/${parsed.data.requestId}`);
 
   if (personal.role === "trabajador") {
-    redirect("/trabajador?estado=1");
+    redirect(`/trabajador/reparaciones/${parsed.data.requestId}?estado=1`);
   }
 
   redirect(`/admin/solicitudes/${parsed.data.requestId}?estado=1`);

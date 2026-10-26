@@ -162,7 +162,7 @@ describe("tomarSolicitudAction", () => {
   it("toma la reparación con el trabajador autenticado", async () => {
     await expect(
       tomarSolicitudAction(FORM_STATE_INICIAL, formularioToma()),
-    ).rejects.toThrow("REDIRECT:/trabajador?tomada=1");
+    ).rejects.toThrow("REDIRECT:/trabajador/reparaciones/req-1?tomada=1");
 
     expect(tomarSolicitudTrabajador).toHaveBeenCalledWith({
       requestId: "req-1",
@@ -170,6 +170,7 @@ describe("tomarSolicitudAction", () => {
       actorRol: "trabajador",
     });
     expect(revalidatePath).toHaveBeenCalledWith("/trabajador");
+    expect(revalidatePath).toHaveBeenCalledWith("/trabajador/reparaciones/req-1");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/solicitudes");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/solicitudes/req-1");
   });
@@ -261,5 +262,23 @@ describe("devolverSolicitudAction", () => {
 
     expect(resultado.status).toBe("error");
     expect(resultado.message).toContain("cambiado");
+  });
+
+  it("trata una reparación ajena igual que una inexistente", async () => {
+    vi.mocked(devolverSolicitudTrabajador).mockResolvedValue({
+      ok: false,
+      motivo: "no-existe",
+    });
+
+    const resultado = await devolverSolicitudAction(
+      FORM_STATE_INICIAL,
+      formularioDevolucion(),
+    );
+
+    expect(resultado).toEqual({
+      status: "error",
+      message: "La reparación ya no existe.",
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

@@ -116,7 +116,9 @@ describe("cambiarEstadoAction", () => {
 
     await expect(
       cambiarEstadoAction(FORM_STATE_INICIAL, formularioEstado()),
-    ).rejects.toThrow("REDIRECT:/trabajador?estado=1");
+    ).rejects.toThrow("REDIRECT:/trabajador/reparaciones/req-1?estado=1");
+
+    expect(revalidatePath).toHaveBeenCalledWith("/trabajador/reparaciones/req-1");
 
     expect(cambiarEstadoSolicitud).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -166,6 +168,50 @@ describe("cambiarEstadoAction", () => {
 
     expect(resultado.status).toBe("error");
     expect(resultado.message).toContain("cambiado");
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("un trabajador recibe la misma respuesta para una reparación ajena que para una inexistente", async () => {
+    vi.mocked(requerirPersonalTaller).mockResolvedValue({
+      id: "worker-2",
+      name: "Otro Trabajador",
+      role: "trabajador",
+    });
+    vi.mocked(cambiarEstadoSolicitud).mockResolvedValue({
+      ok: false,
+      motivo: "no-existe",
+    });
+
+    const resultado = await cambiarEstadoAction(
+      FORM_STATE_INICIAL,
+      formularioEstado(),
+    );
+
+    expect(resultado).toEqual({
+      status: "error",
+      message: "La solicitud ya no existe.",
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("explica que un salto de flujo no está permitido", async () => {
+    vi.mocked(requerirPersonalTaller).mockResolvedValue({
+      id: "worker-1",
+      name: "Trabajador Demo",
+      role: "trabajador",
+    });
+    vi.mocked(cambiarEstadoSolicitud).mockResolvedValue({
+      ok: false,
+      motivo: "transicion-invalida",
+    });
+
+    const resultado = await cambiarEstadoAction(
+      FORM_STATE_INICIAL,
+      formularioEstado({ estadoNuevo: "entregada" }),
+    );
+
+    expect(resultado.message).toBe("Ese cambio no está permitido.");
     expect(redirect).not.toHaveBeenCalled();
   });
 

@@ -46,3 +46,4 @@ next-env.d.ts
 
 # OpenCode / agentes
 .opencode/
+.claude/launch.json

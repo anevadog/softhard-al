@@ -9,3 +9,4 @@
 - Migraciones: genéralas con --create-only, enséñame el SQL antes de aplicarlas y
   aplícalas con prisma migrate deploy. Nunca modifiques migraciones antiguas.
 - Si un comando pide reiniciar o borrar la base de datos, para y avísame.
+- El usuario trabaja con Git Bash en Windows: usa `npm` y `npx` normales, no `.cmd`.

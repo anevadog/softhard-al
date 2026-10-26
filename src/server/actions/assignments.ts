@@ -97,10 +97,11 @@ export async function tomarSolicitudAction(
   }
 
   revalidatePath("/trabajador");
+  revalidatePath(`/trabajador/reparaciones/${parsed.data.requestId}`);
   revalidatePath("/admin/solicitudes");
   revalidatePath(`/admin/solicitudes/${parsed.data.requestId}`);
 
-  redirect("/trabajador?tomada=1");
+  redirect(`/trabajador/reparaciones/${parsed.data.requestId}?tomada=1`);
 }
 
 export async function devolverSolicitudAction(
@@ -136,6 +137,7 @@ export async function devolverSolicitudAction(
   }
 
   revalidatePath("/trabajador");
+  revalidatePath(`/trabajador/reparaciones/${parsed.data.requestId}`);
   revalidatePath("/admin/solicitudes");
   revalidatePath(`/admin/solicitudes/${parsed.data.requestId}`);
 
