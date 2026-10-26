@@ -6,8 +6,24 @@ import type {
   TimeSlot,
 } from "@/generated/prisma/enums";
 
-/** Todos los estados en el orden del flujo. Base para validación y filtros. */
+/** Todos los estados en el orden del flujo. Base para etiquetas y contadores. */
 export const SERVICE_STATUSES = [
+  "pendiente",
+  "diagnosticada",
+  "aceptada",
+  "rechazada",
+  "expirada",
+  "en_reparacion",
+  "esperando_repuesto",
+  "lista",
+  "entregada",
+] as const satisfies readonly ServiceStatus[];
+
+/**
+ * Estados que el panel puede asignar manualmente en esta sub-fase. La máquina
+ * de transiciones de 3.2 sustituirá esta lista por las transiciones válidas.
+ */
+export const SERVICE_STATUSES_PANEL = [
   "pendiente",
   "diagnosticada",
   "aceptada",
@@ -53,6 +69,10 @@ export const SERVICE_STATUS_META: Record<
   en_reparacion: {
     label: "En reparación",
     badgeClass: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  },
+  esperando_repuesto: {
+    label: "Esperando repuesto",
+    badgeClass: "bg-orange-50 text-orange-700 ring-orange-200",
   },
   lista: {
     label: "Lista para entregar",

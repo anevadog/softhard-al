@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { RequestsTable } from "@/components/admin/requests-table";
 import {
-  SERVICE_STATUSES,
+  SERVICE_STATUSES_PANEL,
   SERVICE_STATUS_META,
 } from "@/lib/service-requests";
 import {
@@ -21,7 +21,7 @@ export default async function AdminSolicitudesPage({
   searchParams: Promise<{ estado?: string }>;
 }) {
   const { estado } = await searchParams;
-  const filtro = SERVICE_STATUSES.find((valor) => valor === estado);
+  const filtro = SERVICE_STATUSES_PANEL.find((valor) => valor === estado);
 
   // Expiraciones perezosas: así los contadores y el listado cuadran.
   await expirarPresupuestosVencidos();
@@ -53,7 +53,7 @@ export default async function AdminSolicitudesPage({
           etiqueta="Todas"
           total={total}
         />
-        {SERVICE_STATUSES.map((valor) => (
+        {SERVICE_STATUSES_PANEL.map((valor) => (
           <FiltroLink
             key={valor}
             href={`/admin/solicitudes?estado=${valor}`}

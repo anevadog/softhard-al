@@ -114,11 +114,14 @@ async function seedConfig() {
       id: 1,
       diagnosticFee: 30,
       expirationDays: 7,
+      inactiveRequestHours: 48,
+      openWorkLogHours: 8,
     },
   });
 
   console.log(
-    `Config lista: tarifa de diagnóstico = ${config.diagnosticFee} €, expiración = ${config.expirationDays} días`,
+    `Config lista: tarifa de diagnóstico = ${config.diagnosticFee} €, expiración = ${config.expirationDays} días, ` +
+      `aviso sin actividad = ${config.inactiveRequestHours} h, fichaje abierto = ${config.openWorkLogHours} h`,
   );
 }
 

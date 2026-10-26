@@ -55,6 +55,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               >
                 Productos
               </Link>
+              <Link
+                href="/trabajador"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Taller
+              </Link>
             </nav>
 
             <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">

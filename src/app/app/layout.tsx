@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { auth, signOut } from "@/lib/auth";
-import { esStaff } from "@/lib/authz";
+import { esPersonalTaller, esStaff } from "@/lib/authz";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -43,6 +43,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               >
                 Pedidos
               </Link>
+              {esPersonalTaller(session.user.role) ? (
+                <Link
+                  href="/trabajador"
+                  className="text-slate-600 transition-colors hover:text-slate-900"
+                >
+                  Taller
+                </Link>
+              ) : null}
               {esStaff(session.user.role) ? (
                 <Link
                   href="/admin"

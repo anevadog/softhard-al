@@ -81,6 +81,15 @@ describe("estadoSolicitudSchema", () => {
       estadoSolicitudSchema.safeParse({ requestId: VALID.requestId, status: "cancelada" }).success,
     ).toBe(false);
   });
+
+  it("no acepta todavía el estado nuevo desde el panel", () => {
+    expect(
+      estadoSolicitudSchema.safeParse({
+        requestId: VALID.requestId,
+        status: "esperando_repuesto",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("decisionSchema", () => {

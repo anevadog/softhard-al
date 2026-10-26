@@ -27,8 +27,15 @@ enum ServiceStatus {
   rechazada
   expirada
   en_reparacion
+  esperando_repuesto
   lista
   entregada
+}
+
+/// Tipo de nota interna de una reparación.
+enum RequestNoteType {
+  normal
+  falta_repuesto
 }
 
 enum EquipmentType {
@@ -94,10 +101,18 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  requests       ServiceRequest[] @relation("ClientRequests")
-  assigned       ServiceRequest[] @relation("AssignedRequests")
-  orders         Order[]
-  stockMovements StockMovement[]
+  requests             ServiceRequest[]           @relation("ClientRequests")
+  assigned             ServiceRequest[]           @relation("AssignedRequests")
+  orders               Order[]
+  stockMovements       StockMovement[]
+  statusChanges        ServiceStatusHistory[]     @relation("StatusChangedBy")
+  assignmentChanges    ServiceAssignmentHistory[] @relation("AssignmentChangedBy")
+  assignmentsFrom      ServiceAssignmentHistory[] @relation("AssignmentFrom")
+  assignmentsTo        ServiceAssignmentHistory[] @relation("AssignmentTo")
+  workLogs             WorkLog[]                  @relation("WorkerWorkLogs")
+  editedWorkLogs       WorkLog[]                  @relation("WorkLogEditor")
+  requestNotes         RequestNote[]              @relation("RequestNoteAuthor")
+  resolvedRequestNotes RequestNote[]              @relation("RequestNoteResolver")
 
   @@index([role])
   @@map("users")
@@ -128,12 +143,22 @@ model ServiceRequest {
 
   quote Quote?
 
+  /// Se actualiza en la misma transacción de cualquier acción relevante:
+  /// cambio de estado, asignación, nota o fichaje.
+  lastActivityAt DateTime @default(now())
+
+  statusHistory     ServiceStatusHistory[]
+  assignmentHistory ServiceAssignmentHistory[]
+  workLogs          WorkLog[]
+  notes             RequestNote[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId, createdAt])
   @@index([status])
   @@index([assigneeId])
+  @@index([lastActivityAt])
   @@map("service_requests")
 }
 
@@ -162,6 +187,103 @@ model Quote {
 
   @@index([status, expiresAt])
   @@map("quotes")
+}
+
+/// Historial de cambios de estado de una solicitud.
+model ServiceStatusHistory {
+  id String @id @default(cuid())
+
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  fromStatus ServiceStatus
+  toStatus   ServiceStatus
+
+  changedById String?
+  changedBy   User?   @relation("StatusChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  reason    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([requestId, createdAt])
+  @@index([toStatus])
+  @@map("service_status_history")
+}
+
+/// Historial de asignaciones y devoluciones de una solicitud.
+model ServiceAssignmentHistory {
+  id String @id @default(cuid())
+
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  fromAssigneeId String?
+  fromAssignee   User?   @relation("AssignmentFrom", fields: [fromAssigneeId], references: [id], onDelete: SetNull)
+
+  toAssigneeId String?
+  toAssignee   User?   @relation("AssignmentTo", fields: [toAssigneeId], references: [id], onDelete: SetNull)
+
+  changedById String?
+  changedBy   User?   @relation("AssignmentChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  reason    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([requestId, createdAt])
+  @@index([toAssigneeId, createdAt])
+  @@map("service_assignment_history")
+}
+
+/// Fichaje de un trabajador. `requestId` nulo representa horas generales;
+/// en ese caso la nota es obligatoria (regla de aplicación).
+model WorkLog {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("WorkerWorkLogs", fields: [userId], references: [id], onDelete: Restrict)
+
+  requestId String?
+  request   ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  note String? @db.Text
+
+  editedById String?
+  editedBy   User?   @relation("WorkLogEditor", fields: [editedById], references: [id], onDelete: SetNull)
+
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, startedAt])
+  @@index([requestId, startedAt])
+  @@map("work_logs")
+}
+
+/// Nota interna de una reparación. Las de tipo `falta_repuesto` se destacan
+/// hasta que alguien las marca como atendidas.
+model RequestNote {
+  id String @id @default(cuid())
+
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  authorId String?
+  author   User?   @relation("RequestNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  type RequestNoteType @default(normal)
+  body String          @db.Text
+
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("RequestNoteResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId, createdAt])
+  @@index([type, resolvedAt])
+  @@map("request_notes")
 }
 
 /// Producto del catálogo. `active` implementa borrado lógico: los productos
@@ -259,10 +381,12 @@ model StockMovement {
 
 /// Configuración de negocio. Fila única: id fijo = 1.
 model Config {
-  id             Int      @id @default(1)
-  diagnosticFee  Decimal  @default(30) @db.Decimal(10, 2)
-  expirationDays Int      @default(7)
-  updatedAt      DateTime @updatedAt
+  id                   Int      @id @default(1)
+  diagnosticFee        Decimal  @default(30) @db.Decimal(10, 2)
+  expirationDays       Int      @default(7)
+  inactiveRequestHours Int      @default(48)
+  openWorkLogHours     Int      @default(8)
+  updatedAt            DateTime @updatedAt
 
   @@map("config")
 }

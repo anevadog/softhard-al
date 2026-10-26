@@ -4,7 +4,7 @@ import { useActionState } from "react";
 
 import { FORM_STATE_INICIAL } from "@/lib/form-state";
 import {
-  SERVICE_STATUSES,
+  SERVICE_STATUSES_PANEL,
   SERVICE_STATUS_META,
 } from "@/lib/service-requests";
 import { cambiarEstadoAction } from "@/server/actions/admin-requests";
@@ -34,7 +34,7 @@ export function StatusForm({
           Estado actual: {SERVICE_STATUS_META[status].label}
         </label>
         <select id="status" name="status" defaultValue={status} className={selectClass}>
-          {SERVICE_STATUSES.map((valor) => (
+          {SERVICE_STATUSES_PANEL.map((valor) => (
             <option key={valor} value={valor}>
               {SERVICE_STATUS_META[valor].label}
             </option>

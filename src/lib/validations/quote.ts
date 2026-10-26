@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { DECISIONES } from "@/lib/quotes";
-import { SERVICE_STATUSES } from "@/lib/service-requests";
+import { SERVICE_STATUSES_PANEL } from "@/lib/service-requests";
 
 /**
  * Importe con hasta 6 dígitos enteros y 2 decimales. Admite coma española o
@@ -24,7 +24,7 @@ export type QuoteInput = z.infer<typeof quoteSchema>;
 
 export const estadoSolicitudSchema = z.object({
   requestId: z.string().trim().min(1, "Solicitud no válida"),
-  status: z.enum(SERVICE_STATUSES, { error: "Estado no válido" }),
+  status: z.enum(SERVICE_STATUSES_PANEL, { error: "Estado no válido" }),
 });
 
 export type EstadoSolicitudInput = z.infer<typeof estadoSolicitudSchema>;
