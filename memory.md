@@ -4,8 +4,8 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
 - **Fase 1 completada (tareas 1–8)**.
-- **Fase 2, tareas 1–4 completadas**: CRUD `/admin/productos`, catálogo `/productos`, carrito local `/carrito` y checkout/pedidos.
-- Commits locales de la Tarea 4 creados; **pendiente push**. Siguiente: ficha de producto y gestión administrativa de pedidos/stock. Specs en `docs/specs/fase-1.md` y `fase-2.md`.
+- **Fase 2, tareas 1–5 completadas**: CRUD `/admin/productos`, catálogo `/productos`, carrito local `/carrito`, checkout/pedidos y ficha pública.
+- Push final completado; `main` sincronizado con `origin/main`. Siguiente: stock administrativo con libro de movimientos (Tarea 6). Specs en `docs/specs/fase-1.md` y `fase-2.md`.
 
 ## Stack efectivo
 - Node 24.22.1 LTS · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7
@@ -31,6 +31,7 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 ## Productos y carrito
 - Enum fijo `ProductCategory`; `price Decimal(10,2)`, `stock Int`, `imageUrl` opcional y `active` lógico; datos/acciones con `requerirStaff()`.
 - Catálogo público filtra `active`, ordena `createdAt desc`, acepta categoría; filtros por URL en `src/lib/catalog.ts`.
+- Ficha `/productos/[id]`: solo activos, 404 si no existe/archivado; conserva `?categoria`, `<img>` y botón de carrito reutilizado.
 - Stock: 0 = «Agotado»; 1–3 avisan; ≥4 indican unidades. Seed idempotente con 6 productos (uno agotado).
 - Carrito local `softhard-carrito-v1`: solo IDs/cantidades, contador, total en céntimos, revalidación de precios/stock y ajuste con aviso.
 - Formulario de producto: precio coma/punto, URL http(s) o `null`, placeholder; borrado lógico.
@@ -43,8 +44,8 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - Sin pasarela de pago ni panel admin de pedidos en esta tarea.
 
 ## Tests y próximos pasos
-- **183 tests** en 21 archivos; `typecheck`, `lint` y `build` limpios. QA manual contra PostgreSQL: stock 12→10 y 20→19, conflicto de stock, doble clic e historial.
-- [x] Fase 1 y Fase 2 tareas 1–4; commits locales creados.
-- [ ] Push final; después ficha de producto, gestión administrativa de pedidos y stock.
+- **198 tests** en 23 archivos; `typecheck`, `lint` y `build` limpios. QA manual: checkout/stock e historial; ficha válida, filtro, agotado, 404 e id largo.
+- [x] Fase 1 y Fase 2 tareas 1–5; push final completado. Seed solo con host local o `SEED_ALLOW_PRODUCTION=true`; AGENTS corregido.
+- [ ] Siguiente: Tarea 6, stock administrativo con libro de movimientos.
 - [ ] Deuda: rate limiting en login, emails y tests de integración con BD.
 - Aprendizajes: Prisma 7 exige driver adapter y `output`; `migrate dev` puede no regenerar el cliente. Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.
