@@ -3,8 +3,8 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Fase 1**, **Fase 2**, **3.1**, **3.2a**, **3.2b** y **3.3** cerradas con commit (3.3 en `439be14`). Specs en `docs/specs/`.
-- Tarea de documentación hecha, sin commit y pendiente de revisión: README, AGENTS.md (migraciones `--create-only` + `migrate deploy`), fase-1.md y comentarios del esquema. Además, ajuste de 3.3 sin commit: el detalle libre ya no lee historiales ni cliente. Siguiente: **3.4** fichaje.
+- **Fase 1**, **Fase 2**, **3.1**, **3.2a**, **3.2b** y **3.3** cerradas con commit (3.3 en `439be14`, ajuste del detalle libre en `9706f57`). Specs en `docs/specs/`.
+- Documentación al día con la Fase 3 en `0b1d7c3` (README, AGENTS.md, fase-1.md, comentarios del esquema). Siguiente: **3.4** fichaje (plan antes de construir).
 
 ## Stack y entorno
 - Node 24.22.1 · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7.
