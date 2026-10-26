@@ -3,8 +3,8 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Fase 1**, **Fase 2**, **3.1**, **3.2a**, **3.2b** cerradas con commit; **3.3** hecha y pendiente de revisión, sin commit. Specs en `docs/specs/`.
-- Siguiente: tarea de documentación aparte (README, AGENTS.md alineado con CLAUDE.md en migraciones `--create-only` + `migrate deploy`, fase-1.md, cabeceras del esquema); después **3.4** fichaje.
+- **Fase 1**, **Fase 2**, **3.1**, **3.2a**, **3.2b** y **3.3** cerradas con commit (3.3 en `439be14`). Specs en `docs/specs/`.
+- Tarea de documentación hecha, sin commit y pendiente de revisión: README, AGENTS.md (migraciones `--create-only` + `migrate deploy`), fase-1.md y comentarios del esquema. Además, ajuste de 3.3 sin commit: el detalle libre ya no lee historiales ni cliente. Siguiente: **3.4** fichaje.
 
 ## Stack y entorno
 - Node 24.22.1 · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7.
@@ -38,12 +38,12 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 ## Fase 3.3 — panel del trabajador
 - `/trabajador`: mis reparaciones agrupadas (aceptada → en_reparacion → esperando_repuesto → lista, más antigua primero) y "Para tomar" (máx. 50) solo para trabajador; staff ve enlace al panel.
 - `/trabajador/reparaciones/[id]`: secciones Equipo y avería, Visita, Acciones, Historial de estados y de asignaciones (3.4/3.5 se insertan antes de los historiales). Staff → redirect al detalle admin.
-- Datos en `server/data/worker-requests.ts` con filtro en el `where`; ajena/inexistente → 404; libre → solo lectura con "Tomar". Sin email/teléfono; nombre del cliente solo si es suya.
+- Datos en `server/data/worker-requests.ts` con filtro en el `where`; ajena/inexistente → 404; libre → solo lectura con "Tomar", con consulta propia sin historiales ni cliente (tipo unión por `esMia`). Sin email/teléfono.
 - Botones de estado desde `accionesEstadoTrabajador` (`lib/worker-requests.ts`), sin correcciones. Tomar y cambiar estado redirigen al detalle.
 - Componentes en `components/taller/` con `onSubmit` + `useTransition`.
 
 ## Tests, QA y deuda
-- **348 tests en 39 archivos**; `typecheck`, `lint` y `build` limpios.
+- **349 tests en 39 archivos** (contados con el reporter JSON de Vitest); `typecheck`, `lint` y `build` limpios en 3.3.
 - QA 3.3 con rollback y 0 residuos (19 comprobaciones de visibilidad por trabajador); navegador: inicio de trabajador y encargado, 404 ajena e inexistente, redirect del staff.
 - Deuda: sin campo de dirección (domicilio); `StatusForm`/`AssignmentForm` usan `useActionState`; detalle admin sin historial de estados (3.7); test de `cerrarFichajesAbiertosEnTx` en 3.4; pedidos pendientes retienen stock; sin tests de integración con BD real; rate limiting/emails.
 - Aprendizajes: Prisma 7 exige driver adapter y `output`; Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.

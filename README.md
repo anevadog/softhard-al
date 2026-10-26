@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `258 tests`
+`Fase 1 completada` · `Fase 2 completada` · `Fase 3 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `349 tests`
 
 ## Capturas
 
@@ -43,8 +43,11 @@ SoftHard A&L es una aplicación full stack que cubre el ciclo completo de una re
 2. El cliente se registra y crea una solicitud indicando equipo, avería, modalidad y franja horaria.
 3. El encargado revisa la solicitud, emite un presupuesto y gestiona su estado.
 4. El cliente acepta o rechaza el presupuesto dentro del plazo y ve el importe final que le corresponde.
+5. El taller asigna la reparación a un trabajador, que la sigue desde `/trabajador` hasta dejarla lista para entregar.
 
 La Fase 2 está completada: catálogo público, ficha de producto, panel interno de productos, carrito local, checkout con historial de pedidos, gestión administrativa de pedidos y libro de stock con ajustes e historial.
+
+La Fase 3 (taller interno) está en curso: hechas las sub-fases 3.1, 3.2a, 3.2b y 3.3.
 
 ## Funcionalidad
 
@@ -68,7 +71,7 @@ La Fase 2 está completada: catálogo público, ficha de producto, panel interno
 - Panel con todas las solicitudes y filtro por estado con contadores.
 - Detalle de cada solicitud con datos del cliente, equipo y problema.
 - Creación del presupuesto con vista previa del importe final.
-- Cambio manual de estado entre los 8 estados del flujo.
+- Cambio de estado entre los 9 estados del flujo (`pendiente`, `diagnosticada`, `aceptada`, `rechazada`, `expirada`, `en_reparacion`, `esperando_repuesto`, `lista` y `entregada`). Desde la Fase 3 lo decide una máquina de transiciones: fuera del flujo normal, el staff corrige con motivo obligatorio.
 
 ### Fase 2 (completada)
 
@@ -93,6 +96,16 @@ La Fase 2 está completada: catálogo público, ficha de producto, panel interno
 - Transiciones `pendiente → pagado | cancelado` y `pagado → entregado | cancelado`, aplicadas con actualización condicional sobre el estado esperado.
 - Cancelación transaccional: repone todas las líneas (también archivadas), crea un movimiento positivo por línea y no repone dos veces. Cancelar un pedido pagado exige motivo y avisa de que no hay reembolso.
 - Los pedidos nacen en estado `pendiente`; «pagado» se marca a mano porque no hay pasarela de pago.
+
+### Fase 3: taller interno (en curso)
+
+Spec completa en [`docs/specs/fase-3.md`](docs/specs/fase-3.md). La unidad de trabajo es la propia solicitud de reparación; no hay tickets internos.
+
+- **3.1 Datos y permisos:** estado `esperando_repuesto`; historiales de estados y de asignaciones; fichajes (`WorkLog`) y notas internas; fecha de última actividad; parámetros de aviso en `Config`. La base de datos impide dos fichajes abiertos del mismo trabajador y una salida anterior a la entrada. Ruta `/trabajador` para trabajador, encargado y admin, protegida en middleware, layout y acciones.
+- **3.2a Transiciones:** una única función pura decide qué cambio de estado es válido para cada rol. El trabajador asignado avanza por `aceptada → en_reparacion ⇄ esperando_repuesto` y `en_reparacion → lista`; solo encargado y admin marcan `entregada`. Todo cambio deja historial, actualiza la última actividad y cierra el fichaje abierto cuando el estado deja de ser `en_reparacion`.
+- **3.2b Asignación:** el encargado asigna y reasigna desde el detalle del panel; un trabajador toma una reparación aceptada sin responsable (si otro la tomó antes, falla con un mensaje claro) o la devuelve con motivo obligatorio. Cada cambio de responsable queda en su historial.
+- **3.3 Panel del trabajador:** en `/trabajador`, mobile-first, sus reparaciones agrupadas por estado (primero las que exigen acción) y las aceptadas sin responsable para tomar. El detalle muestra equipo, avería, visita, botones de cambio de estado según la máquina de transiciones, devolución e historiales. Nunca muestra email ni teléfono del cliente; una reparación ajena devuelve 404.
+- **Pendiente:** fichaje (3.4), notas y falta de repuesto (3.5), avisos de reparaciones sin actividad (3.6) y vistas y reportes del encargado (3.7).
 
 ## Stack tecnológico
 
@@ -191,11 +204,11 @@ El seed es idempotente y crea cuatro cuentas con la misma contraseña: **`Demo12
 | Email | Rol | Acceso |
 |---|---|---|
 | `cliente@demo.local` | cliente | `/app` |
-| `trabajador@demo.local` | trabajador | `/app` (sin acceso al panel) |
-| `encargado@demo.local` | encargado | `/admin` (solicitudes, pedidos, productos y stock) |
-| `admin@demo.local` | admin | `/admin` (solicitudes, pedidos, productos y stock) |
+| `trabajador@demo.local` | trabajador | `/trabajador` (sus reparaciones y las de tomar) y `/app`; sin acceso al panel |
+| `encargado@demo.local` | encargado | `/admin` (solicitudes, asignaciones, pedidos, productos y stock) y `/trabajador` |
+| `admin@demo.local` | admin | `/admin` (solicitudes, asignaciones, pedidos, productos y stock) y `/trabajador` |
 
-En el panel, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico y **7 días** de validez del presupuesto) y seis productos de demostración para el catálogo.
+En el panel, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico, **7 días** de validez del presupuesto, aviso a las **48 h** sin actividad y fichaje abierto a las **8 h**) y seis productos de demostración para el catálogo. No crea solicitudes de reparación.
 
 ## Scripts
 
@@ -226,16 +239,20 @@ src/
     (auth)/                login y registro
     app/                   área del cliente (solicitudes y pedidos)
     admin/                 panel interno
+    trabajador/            área de taller (mis reparaciones, para tomar y detalle)
     api/auth/              handler de Auth.js
   components/
     site/                  landing, cabecera y catálogo público
     cart/                  provider, contador y vista del carrito
     orders/                badge de estado de pedido
     service-requests/      solicitudes, presupuestos y decisión
-    admin/                 solicitudes, pedidos, productos y stock
+    admin/                 solicitudes, asignación, pedidos, productos y stock
+    taller/                tarjetas, formularios e historiales del área de taller
   lib/
     auth.ts, authz.ts      autenticación y permisos
     navigation.ts          callback interno seguro tras login/registro
+    service-status.ts      máquina de transiciones de estado de las reparaciones
+    worker-requests.ts     agrupación y acciones del panel del trabajador
     orders.ts              estados, transiciones, tipos y cálculo puro de pedidos
     stock.ts               motivos, límites y textos del libro de stock
     quotes.ts              reglas puras de importes y expiración
@@ -244,14 +261,15 @@ src/
     cart.ts                persistencia, stock e importes del carrito
     validations/           esquemas Zod
   server/
-    actions/               Server Actions (mutaciones, carrito, checkout, panel y stock)
-    data/                  acceso a datos con control de propiedad
+    authorization.ts       guards requerirStaff y requerirPersonalTaller (rol revalidado en BD)
+    actions/               Server Actions (mutaciones, carrito, checkout, panel, stock y taller)
+    data/                  acceso a datos con control de propiedad y de responsable
 prisma/
   schema.prisma
   migrations/
   seed.ts
 public/productos/          placeholder de producto
-docs/specs/               especificaciones de Fase 1 y Fase 2
+docs/specs/               especificaciones de las fases 1, 2 y 3
 ```
 
 ## Decisiones de arquitectura
@@ -339,9 +357,9 @@ pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso
 ### Seguridad y permisos
 
 - **Contraseñas** con `bcrypt` (coste 12). El registro público siempre asigna el rol `cliente`; Zod descarta cualquier `role` inyectado.
-- **Middleware** en el edge para separar `/app` (cualquier sesión) de `/admin` (solo `encargado` y `admin`).
-- **Revalidación del rol en cada Server Action** (`requerirStaff`): el JWT no se considera prueba suficiente.
-- **Propiedad de los datos**: las consultas del cliente filtran por `{ id, clientId }`; los pedidos filtran por `{ id, userId }`. Un identificador ajeno devuelve 404, sin revelar si existe.
+- **Middleware** en el edge para separar `/app` (cualquier sesión), `/admin` (solo `encargado` y `admin`) y `/trabajador` (`trabajador`, `encargado` y `admin`).
+- **Revalidación del rol en cada Server Action** (`requerirStaff`, `requerirPersonalTaller`): el JWT no se considera prueba suficiente.
+- **Propiedad de los datos**: las consultas del cliente filtran por `{ id, clientId }`; los pedidos filtran por `{ id, userId }`; el trabajador solo ve sus reparaciones y las aceptadas sin responsable, con el filtro en la propia consulta. Un identificador ajeno devuelve 404, sin revelar si existe.
 - **Importes y estados** se validan en servidor; los formularios solo envían la intención (`aceptar`, `rechazar`) y el checkout nunca envía precios ni totales.
 - **Callback seguro**: tras login o registro solo se acepta una ruta interna; se rechazan URLs externas, protocolos peligrosos y el acceso de un cliente al panel.
 
@@ -349,8 +367,8 @@ pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **258 tests** en 29 archivos (`npm run test`), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones y cancelación con reposición.
-- Los tests de la transacción usan Prisma mockeado; el flujo real de checkout, stock, ajustes y pedidos se verificó manualmente contra PostgreSQL.
+- **349 tests** en 39 archivos (`npm run test`), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, y visibilidad del panel del trabajador.
+- Los tests de la transacción usan Prisma mockeado; el flujo real de checkout, stock, ajustes, pedidos y taller se verificó manualmente contra PostgreSQL, con rollback en las pruebas del taller.
 - TypeScript estricto y ESLint en cada cambio.
 - **Deuda conocida:** no hay tests de integración automáticos con base de datos real. Los pedidos pendientes retienen stock hasta que se cancelan y no se libera automáticamente.
 
@@ -389,25 +407,31 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] Libro de stock, ajustes manuales e historial por producto.
 - [x] Gestión administrativa de pedidos, transiciones y cancelación con reposición.
 
-### Fase 3 — futuro
+### Fase 3 — en curso
 
-- Operativa completa de taller: asignación de trabajadores, reparación y entrega.
-- Historial de estados y notificaciones por email.
-- Pagos reales y facturación.
+- [x] 3.1 Datos y permisos del taller.
+- [x] 3.2a Máquina de transiciones de estado con historial.
+- [x] 3.2b Asignación, toma y devolución con historial.
+- [x] 3.3 Panel del trabajador: mis reparaciones, detalle y reparaciones por tomar.
+- [ ] 3.4 Fichaje.
+- [ ] 3.5 Notas y falta de repuesto.
+- [ ] 3.6 Avisos de reparaciones sin actividad.
+- [ ] 3.7 Vistas y reportes del encargado.
 
 ## Fuera de alcance
 
-Estas funciones quedan fuera del alcance actual (Fase 1 y tienda de la Fase 2):
+Estas funciones quedan fuera del alcance actual (ver también la spec de la Fase 3):
 
 - Pagos reales, pasarela de pago, reembolsos y facturación.
-- Historial de estados de pedido y de solicitud más allá del estado actual.
+- Historial de estados de pedido.
 - Integración del catálogo con el área de cliente (recomendaciones o personalización).
 - Reserva de stock al añadir al carrito o liberación automática de pedidos pendientes.
 - Sincronización del carrito con la cuenta al iniciar sesión.
 - Cupones, envíos e impuestos.
-- Tickets internos y fichaje de horas.
+- Tickets internos e inventario de repuestos.
+- Pausas, aprobación de horas y nóminas.
 - Contabilidad.
-- Emails automáticos y notificaciones.
+- Emails automáticos y notificaciones push.
 - Rate limiting en el login (deuda técnica anotada).
 - Tests de integración automáticos con base de datos real (deuda técnica anotada).
 
@@ -415,6 +439,7 @@ Estas funciones quedan fuera del alcance actual (Fase 1 y tienda de la Fase 2):
 
 - [`docs/specs/fase-1.md`](docs/specs/fase-1.md) — objetivos, historias de usuario y criterios de aceptación de la Fase 1.
 - [`docs/specs/fase-2.md`](docs/specs/fase-2.md) — alcance del catálogo, el carrito, el checkout y criterios de la Fase 2.
+- [`docs/specs/fase-3.md`](docs/specs/fase-3.md) — taller interno: estados, asignación, fichaje, notas, avisos, vistas, sub-fases y criterios de la Fase 3.
 - [`AGENTS.md`](AGENTS.md) — convenciones y reglas de trabajo del repositorio.
 - [`memory.md`](memory.md) — estado y notas de continuidad del proyecto.
 

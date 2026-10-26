@@ -28,7 +28,10 @@ Sin pagos reales. Sin e-commerce. Sin tickets internos.
 - Si no responde en N días → `expirada` (N configurable, por defecto 7).
 
 ## Estados de ServiceRequest
-`pendiente` → `diagnosticada` → `aceptada` | `rechazada` | `expirada` → `en_reparacion` → `lista` → `entregada`.
+`pendiente` → `diagnosticada` → `aceptada` | `rechazada` | `expirada` → `en_reparacion` ⇄ `esperando_repuesto`; `en_reparacion` → `lista` → `entregada`.
+
+`esperando_repuesto` lo incorpora la Fase 3 (ver `docs/specs/fase-3.md`): una reparación
+pasa de `en_reparacion` a `esperando_repuesto` y vuelve cuando llega la pieza.
 
 Fase 1 solo implementa hasta `aceptada`/`rechazada`. El resto queda para Fase 3.
 

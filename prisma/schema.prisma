@@ -1,5 +1,5 @@
-// Esquema de datos — SoftHard A&L, Fase 1
-// Estados y valores de dominio en español (coinciden con docs/specs/fase-1.md).
+// Esquema de datos — SoftHard A&L (Fases 1, 2 y 3: servicio técnico, tienda y taller).
+// Estados y valores de dominio en español (coinciden con docs/specs/).
 
 generator client {
   provider = "prisma-client"
@@ -18,8 +18,9 @@ enum Role {
   admin
 }
 
-/// Estados de una solicitud. Fase 1 usa hasta `aceptada`/`rechazada`/`expirada`;
-/// el resto se implementa en Fase 3, pero se declara ya para no migrar el enum.
+/// Estados de una solicitud. La Fase 1 cubre hasta `aceptada`/`rechazada`/`expirada`;
+/// la Fase 3 usa el resto (incluido `esperando_repuesto`) con la máquina de
+/// transiciones de `src/lib/service-status.ts`.
 enum ServiceStatus {
   pendiente
   diagnosticada
@@ -138,7 +139,7 @@ model ServiceRequest {
   status ServiceStatus @default(pendiente)
 
   /// Calculado al crear el presupuesto. Se evalúa de forma perezosa al leer:
-  /// no hay cron en Fase 1.
+  /// no hay cron.
   expiresAt DateTime?
 
   quote Quote?
