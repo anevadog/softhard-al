@@ -1,5 +1,8 @@
 # Spec Fase 3 — Taller interno
 
+**Estado:** completada (sub-fases 3.1 a 3.7). Las decisiones tomadas al implementarla
+están al final, en «Decisiones de implementación».
+
 ## Objetivo
 Gestionar el trabajo real del taller: que cada reparación aceptada tenga un
 responsable, que el trabajador registre su tiempo, que pueda avisar de que falta
@@ -146,3 +149,21 @@ Las semanas empiezan en lunes y se calculan en la zona horaria Europe/Madrid.
 - Pausas, aprobación de horas, nóminas.
 - Emails y notificaciones push.
 - Tests de integración contra una base de datos real.
+
+## Decisiones de implementación
+- 3.2 se dividió en 3.2a (transiciones) y 3.2b (asignación).
+- Contacto del cliente: el trabajador nunca ve email ni teléfono. No existe en el
+  esquema un campo para que el encargado decida lo contrario ni un campo de
+  dirección para visitas a domicilio (deuda anotada).
+- Una reparación libre (aceptada sin responsable) se ve en solo lectura, sin
+  historiales ni nombre del cliente, con el botón Tomar.
+- Una reparación devuelta no aparece en «Para tomar» ni se puede tomar: solo la
+  reasigna encargado o admin.
+- Solo el rol trabajador ficha. Las correcciones del encargado guardan el último
+  editor (`editedById`/`editedAt`), no un historial completo, y no reabren fichajes.
+- Una nota de falta de repuesto no cambia el estado; solo encargado o admin la
+  marcan como atendida. Las notas no se editan ni se borran.
+- El aviso de inactividad del trabajador cuenta `aceptada`, `en_reparacion` y
+  `esperando_repuesto`; el panel añade `lista`. Exactamente en el plazo no avisa.
+- Un fichaje cuenta entero en la semana en la que empieza; los abiertos, hasta ahora.
+- Todas las fechas de la aplicación se muestran en Europe/Madrid.

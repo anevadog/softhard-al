@@ -21,7 +21,7 @@ Proyecto de portfolio del dueño. Repo privado. Datos ficticios en demo.
 - `src/app/api/auth/` handler de Auth.js
 - `src/middleware.ts` protección de `/app`, `/admin` y `/trabajador` por rol
 - `src/components/` UI reutilizable (`admin/`, `taller/`, `service-requests/`, `site/`, `cart/`, `orders/`)
-- `src/lib/` db, auth, permisos (`authz.ts`), reglas puras (estados, importes, stock) y `validations/`
+- `src/lib/` db, auth, permisos (`authz.ts`), reglas puras (estados, importes, stock, fichajes, notas, avisos y reportes), formato de fechas en Europe/Madrid y `validations/`
 - `src/server/authorization.ts` guards `requerirStaff` y `requerirPersonalTaller` (revalidan el rol en BD)
 - `src/server/actions/` Server Actions
 - `src/server/data/` consultas y escrituras con control de propiedad

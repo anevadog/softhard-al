@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 completada` · `Fase 3 en curso` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `349 tests`
+`Fase 1 completada` · `Fase 2 completada` · `Fase 3 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `457 tests`
 
 ## Capturas
 
@@ -43,11 +43,12 @@ SoftHard A&L es una aplicación full stack que cubre el ciclo completo de una re
 2. El cliente se registra y crea una solicitud indicando equipo, avería, modalidad y franja horaria.
 3. El encargado revisa la solicitud, emite un presupuesto y gestiona su estado.
 4. El cliente acepta o rechaza el presupuesto dentro del plazo y ve el importe final que le corresponde.
-5. El taller asigna la reparación a un trabajador, que la sigue desde `/trabajador` hasta dejarla lista para entregar.
+5. El taller asigna la reparación a un trabajador, que la sigue desde `/trabajador`: cambia su estado, ficha su tiempo, deja notas o avisa de que falta una pieza hasta dejarla lista para entregar.
+6. El encargado vigila el taller: reparaciones sin actividad, devueltas, faltas de repuesto, fichajes y horas por trabajador y por reparación.
 
 La Fase 2 está completada: catálogo público, ficha de producto, panel interno de productos, carrito local, checkout con historial de pedidos, gestión administrativa de pedidos y libro de stock con ajustes e historial.
 
-La Fase 3 (taller interno) está en curso: hechas las sub-fases 3.1, 3.2a, 3.2b y 3.3.
+La Fase 3 (taller interno) está completada: asignación, panel del trabajador, fichaje, notas y faltas de repuesto, avisos de reparaciones sin actividad y reportes del encargado.
 
 ## Funcionalidad
 
@@ -97,7 +98,7 @@ La Fase 3 (taller interno) está en curso: hechas las sub-fases 3.1, 3.2a, 3.2b 
 - Cancelación transaccional: repone todas las líneas (también archivadas), crea un movimiento positivo por línea y no repone dos veces. Cancelar un pedido pagado exige motivo y avisa de que no hay reembolso.
 - Los pedidos nacen en estado `pendiente`; «pagado» se marca a mano porque no hay pasarela de pago.
 
-### Fase 3: taller interno (en curso)
+### Fase 3: taller interno (completada)
 
 Spec completa en [`docs/specs/fase-3.md`](docs/specs/fase-3.md). La unidad de trabajo es la propia solicitud de reparación; no hay tickets internos.
 
@@ -105,7 +106,10 @@ Spec completa en [`docs/specs/fase-3.md`](docs/specs/fase-3.md). La unidad de tr
 - **3.2a Transiciones:** una única función pura decide qué cambio de estado es válido para cada rol. El trabajador asignado avanza por `aceptada → en_reparacion ⇄ esperando_repuesto` y `en_reparacion → lista`; solo encargado y admin marcan `entregada`. Todo cambio deja historial, actualiza la última actividad y cierra el fichaje abierto cuando el estado deja de ser `en_reparacion`.
 - **3.2b Asignación:** el encargado asigna y reasigna desde el detalle del panel; un trabajador toma una reparación aceptada sin responsable (si otro la tomó antes, falla con un mensaje claro) o la devuelve con motivo obligatorio. Cada cambio de responsable queda en su historial.
 - **3.3 Panel del trabajador:** en `/trabajador`, mobile-first, sus reparaciones agrupadas por estado (primero las que exigen acción) y las aceptadas sin responsable para tomar. El detalle muestra equipo, avería, visita, botones de cambio de estado según la máquina de transiciones, devolución e historiales. Nunca muestra email ni teléfono del cliente; una reparación ajena devuelve 404.
-- **Pendiente:** fichaje (3.4), notas y falta de repuesto (3.5), avisos de reparaciones sin actividad (3.6) y vistas y reportes del encargado (3.7).
+- **3.4 Fichaje:** el trabajador ficha entrada y salida en una reparación suya en `en_reparacion` o en horas generales con nota obligatoria; tarjeta del fichaje actual en `/trabajador`, aviso si lleva abierto más de las horas configuradas e historial semanal en `/trabajador/fichajes`. El encargado ve los fichajes abiertos, los cierra y corrige entrada, salida y nota en `/admin/fichajes`, con constancia de quién y cuándo.
+- **3.5 Notas y falta de repuesto:** notas internas ligadas a la reparación, normales o de falta de repuesto; el trabajador escribe en las suyas abiertas y el staff en cualquiera. Las faltas pendientes se destacan en el listado del panel hasta que el encargado las marca como atendidas. El cliente nunca las ve.
+- **3.6 Avisos sin actividad:** cada página de `/trabajador` avisa de las reparaciones propias que superan las horas sin actividad configuradas, con enlace a cada una; el aviso desaparece con cualquier actividad. El panel muestra el bloque «Requieren atención» con las reparaciones sin actividad y las devueltas sin responsable. Una reparación devuelta ya no se puede tomar: solo la reasigna el encargado.
+- **3.7 Vistas y reportes:** `/admin/reportes` con horas por trabajador y por reparación (semana y acumulado), reparaciones por estado y listas completas de avisos; lista de fichajes filtrable por trabajador y semana; historial de estados en el detalle de la solicitud y filtro de solicitudes con faltas de repuesto pendientes. Las semanas van de lunes a domingo en hora de Madrid.
 
 ## Stack tecnológico
 
@@ -204,11 +208,11 @@ El seed es idempotente y crea cuatro cuentas con la misma contraseña: **`Demo12
 | Email | Rol | Acceso |
 |---|---|---|
 | `cliente@demo.local` | cliente | `/app` |
-| `trabajador@demo.local` | trabajador | `/trabajador` (sus reparaciones y las de tomar) y `/app`; sin acceso al panel |
-| `encargado@demo.local` | encargado | `/admin` (solicitudes, asignaciones, pedidos, productos y stock) y `/trabajador` |
-| `admin@demo.local` | admin | `/admin` (solicitudes, asignaciones, pedidos, productos y stock) y `/trabajador` |
+| `trabajador@demo.local` | trabajador | `/trabajador` (sus reparaciones, las de tomar, fichaje, notas y su historial de fichajes) y `/app`; sin acceso al panel |
+| `encargado@demo.local` | encargado | `/admin` (solicitudes, asignaciones, notas, fichajes, reportes, pedidos, productos y stock) y `/trabajador` |
+| `admin@demo.local` | admin | `/admin` (solicitudes, asignaciones, notas, fichajes, reportes, pedidos, productos y stock) y `/trabajador` |
 
-En el panel, `admin` y `encargado` comparten permisos. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico, **7 días** de validez del presupuesto, aviso a las **48 h** sin actividad y fichaje abierto a las **8 h**) y seis productos de demostración para el catálogo. No crea solicitudes de reparación.
+En el panel, `admin` y `encargado` comparten permisos. Solo el rol `trabajador` ficha. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico, **7 días** de validez del presupuesto, aviso a las **48 h** sin actividad y fichaje abierto a las **8 h**) y seis productos de demostración para el catálogo. No crea solicitudes de reparación.
 
 ## Scripts
 
@@ -238,21 +242,26 @@ src/
     (public)/              landing, catálogo y carrito
     (auth)/                login y registro
     app/                   área del cliente (solicitudes y pedidos)
-    admin/                 panel interno
-    trabajador/            área de taller (mis reparaciones, para tomar y detalle)
+    admin/                 panel interno (solicitudes, fichajes, reportes, pedidos y productos)
+    trabajador/            área de taller (mis reparaciones, detalle y mis fichajes)
     api/auth/              handler de Auth.js
   components/
     site/                  landing, cabecera y catálogo público
     cart/                  provider, contador y vista del carrito
     orders/                badge de estado de pedido
     service-requests/      solicitudes, presupuestos y decisión
-    admin/                 solicitudes, asignación, pedidos, productos y stock
-    taller/                tarjetas, formularios e historiales del área de taller
+    admin/                 solicitudes, asignación, fichajes, notas, avisos, pedidos, productos y stock
+    taller/                tarjetas, fichaje, notas, avisos e historiales del área de taller
   lib/
     auth.ts, authz.ts      autenticación y permisos
     navigation.ts          callback interno seguro tras login/registro
     service-status.ts      máquina de transiciones de estado de las reparaciones
     worker-requests.ts     agrupación y acciones del panel del trabajador
+    work-logs.ts           duración de fichajes y semanas/horas en Europe/Madrid
+    request-notes.ts       tipos y orden de las notas internas
+    inactivity.ts          plazo y estados de los avisos sin actividad
+    reports.ts             agregaciones de horas por trabajador y por reparación
+    format.ts              importes y fechas (siempre en hora de Madrid)
     orders.ts              estados, transiciones, tipos y cálculo puro de pedidos
     stock.ts               motivos, límites y textos del libro de stock
     quotes.ts              reglas puras de importes y expiración
@@ -341,6 +350,27 @@ pedido cuando existe.
 **Deuda conocida:** un pedido pendiente retiene el stock descontado hasta que se
 cancela; no hay liberación automática ni reserva al añadir al carrito.
 
+### Taller: concurrencia y reglas en servidor
+
+La unidad de trabajo es la propia `ServiceRequest`; fichajes, notas e historiales
+cuelgan de ella. Una única función pura (`lib/service-status.ts`) decide qué cambio
+de estado es válido para cada rol, y las acciones del taller se aplican con un
+`updateMany` condicional sobre la reparación (responsable, estado esperado) que,
+además, actualiza `lastActivityAt` y bloquea la fila frente a cambios simultáneos.
+
+- **Un solo fichaje abierto por trabajador:** lo garantiza un índice único parcial
+  sobre `work_logs(userId) WHERE endedAt IS NULL`; un check impide una salida anterior
+  a la entrada. Un doble clic o dos dispositivos reciben «ya tienes un fichaje abierto».
+- **Cierre automático:** todo estado distinto de `en_reparacion`, una reasignación o
+  una devolución cierran el fichaje abierto en la misma transacción.
+- **Tomar una reparación** es condicional: si otro la tomó antes, falla con un mensaje
+  claro. Las devueltas solo las reasigna el encargado.
+- **Avisos perezosos:** no hay cron. Las reparaciones sin actividad se calculan al
+  cargar la página comparando `lastActivityAt` con `Config.inactiveRequestHours`.
+- **Zona horaria:** los instantes se guardan en UTC y se muestran en Europe/Madrid;
+  las semanas van de lunes a domingo en Madrid y un fichaje cuenta entero en la semana
+  en la que empieza. Sin dependencias de fechas: `Intl` y tests con los cambios de hora.
+
 ### Gestión administrativa de pedidos
 
 Las transiciones viven en una única función pura: `pendiente → pagado | cancelado` y
@@ -359,7 +389,8 @@ pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso
 - **Contraseñas** con `bcrypt` (coste 12). El registro público siempre asigna el rol `cliente`; Zod descarta cualquier `role` inyectado.
 - **Middleware** en el edge para separar `/app` (cualquier sesión), `/admin` (solo `encargado` y `admin`) y `/trabajador` (`trabajador`, `encargado` y `admin`).
 - **Revalidación del rol en cada Server Action** (`requerirStaff`, `requerirPersonalTaller`): el JWT no se considera prueba suficiente.
-- **Propiedad de los datos**: las consultas del cliente filtran por `{ id, clientId }`; los pedidos filtran por `{ id, userId }`; el trabajador solo ve sus reparaciones y las aceptadas sin responsable, con el filtro en la propia consulta. Un identificador ajeno devuelve 404, sin revelar si existe.
+- **Propiedad de los datos**: las consultas del cliente filtran por `{ id, clientId }`; los pedidos filtran por `{ id, userId }`; el trabajador solo ve sus reparaciones y las aceptadas sin responsable (nunca devueltas), y sus fichajes y notas, con el filtro en la propia consulta. Un identificador ajeno devuelve 404, sin revelar si existe.
+- **Privacidad del cliente en el taller**: el trabajador nunca recibe email ni teléfono del cliente, y de una reparación libre no recibe ni el nombre ni los historiales. El área de cliente nunca selecciona notas, fichajes ni historiales internos (fijado con tests).
 - **Importes y estados** se validan en servidor; los formularios solo envían la intención (`aceptar`, `rechazar`) y el checkout nunca envía precios ni totales.
 - **Callback seguro**: tras login o registro solo se acepta una ruta interna; se rechazan URLs externas, protocolos peligrosos y el acceso de un cliente al panel.
 
@@ -367,7 +398,7 @@ pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **349 tests** en 39 archivos (`npm run test`), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, y visibilidad del panel del trabajador.
+- **457 tests** en 51 archivos (`npm run test`), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, y reportes.
 - Los tests de la transacción usan Prisma mockeado; el flujo real de checkout, stock, ajustes, pedidos y taller se verificó manualmente contra PostgreSQL, con rollback en las pruebas del taller.
 - TypeScript estricto y ESLint en cada cambio.
 - **Deuda conocida:** no hay tests de integración automáticos con base de datos real. Los pedidos pendientes retienen stock hasta que se cancelan y no se libera automáticamente.
@@ -377,7 +408,7 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - **Server Components por defecto**; los componentes cliente se limitan a formularios e interacción.
 - Las páginas no tocan Prisma: la capa `src/server/data` concentra consultas y control de propiedad.
 - Las mutaciones son **Server Actions** con validación Zod y revalidación de rutas.
-- Los formularios controlados usan `onSubmit` + `useTransition` para evitar el reset de formularios de React 19 y conservar lo escrito ante errores.
+- Los formularios controlados usan `onSubmit` + `useTransition` para evitar el reset de formularios de React 19 y conservar lo escrito ante errores. **Deuda conocida:** los formularios de estado y asignación del detalle del panel aún usan `useActionState`.
 
 ## Roadmap
 
@@ -407,16 +438,16 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] Libro de stock, ajustes manuales e historial por producto.
 - [x] Gestión administrativa de pedidos, transiciones y cancelación con reposición.
 
-### Fase 3 — en curso
+### Fase 3 — completada
 
 - [x] 3.1 Datos y permisos del taller.
 - [x] 3.2a Máquina de transiciones de estado con historial.
 - [x] 3.2b Asignación, toma y devolución con historial.
 - [x] 3.3 Panel del trabajador: mis reparaciones, detalle y reparaciones por tomar.
-- [ ] 3.4 Fichaje.
-- [ ] 3.5 Notas y falta de repuesto.
-- [ ] 3.6 Avisos de reparaciones sin actividad.
-- [ ] 3.7 Vistas y reportes del encargado.
+- [x] 3.4 Fichaje con historial semanal, cierre y corrección del encargado.
+- [x] 3.5 Notas y falta de repuesto con atención del encargado.
+- [x] 3.6 Avisos de reparaciones sin actividad y devueltas sin responsable.
+- [x] 3.7 Vistas y reportes del encargado.
 
 ## Fuera de alcance
 
@@ -432,6 +463,8 @@ Estas funciones quedan fuera del alcance actual (ver también la spec de la Fase
 - Pausas, aprobación de horas y nóminas.
 - Contabilidad.
 - Emails automáticos y notificaciones push.
+- Dirección del cliente para visitas a domicilio: el esquema no la tiene (deuda anotada).
+- Historial completo de correcciones de fichajes y control de solapes tras una corrección: solo se guarda el último editor (deuda anotada).
 - Rate limiting en el login (deuda técnica anotada).
 - Tests de integración automáticos con base de datos real (deuda técnica anotada).
 

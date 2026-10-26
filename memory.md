@@ -3,7 +3,7 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Fases 1, 2 y 3 completas** con commit (3.6 en `232d09a`; 3.7 en el commit `feat(taller)` de reportes). Pendiente: actualizar README con la Fase 3 terminada. Specs en `docs/specs/`.
+- **Fases 1, 2 y 3 completas** con commit (3.6 en `232d09a`, 3.7 en `084f941`). Documentación de la Fase 3 completa (README, AGENTS.md y "Decisiones de implementación" en `fase-3.md`) en el commit `docs` posterior. Specs en `docs/specs/`.
 
 ## Stack y entorno
 - Node 24.22.1 · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7 · Prisma 7.10.1 + adapter-pg · PostgreSQL 16.15 local (`localhost:5432`, BD `softhard`) · ESLint 9.
