@@ -20,8 +20,8 @@ import {
 const findMany = vi.mocked(prisma.serviceRequest.findMany);
 const findFirst = vi.mocked(prisma.serviceRequest.findFirst);
 
-function argumentos<T>(mock: { mock: { calls: unknown[][] } }): T {
-  return mock.mock.calls[0]?.[0] as T;
+function argumentos<T>(mock: { mock: { calls: unknown[][] } }, llamada = 0): T {
+  return mock.mock.calls[llamada]?.[0] as T;
 }
 
 type ArgsConsulta = {
@@ -31,10 +31,13 @@ type ArgsConsulta = {
   take?: number;
 };
 
-function filaDetalle(overrides: Record<string, unknown> = {}) {
+const FECHA = new Date("2026-10-21T09:00:00Z");
+
+/** Campos que devuelve Prisma para el `select` base del detalle. */
+function filaBase(overrides: Record<string, unknown> = {}) {
   return {
     id: "req-1",
-    status: "en_reparacion",
+    status: "aceptada",
     equipmentType: "portatil",
     brand: "Lenovo",
     model: "T14",
@@ -44,12 +47,37 @@ function filaDetalle(overrides: Record<string, unknown> = {}) {
     createdAt: new Date("2026-10-18T10:00:00Z"),
     timeSlot: "manana",
     preferredDate: null,
-    assigneeId: "worker-1",
-    client: { name: "Cliente Demo" },
-    statusHistory: [],
-    assignmentHistory: [],
     ...overrides,
   };
+}
+
+/** Fila de la consulta de una reparación propia, con historiales y cliente. */
+function filaPropia(overrides: Record<string, unknown> = {}) {
+  return filaBase({
+    status: "en_reparacion",
+    client: { name: "Cliente Demo" },
+    statusHistory: [
+      {
+        id: "sh-1",
+        createdAt: FECHA,
+        fromStatus: "aceptada",
+        toStatus: "en_reparacion",
+        reason: null,
+        changedBy: { name: "Trabajador Demo" },
+      },
+    ],
+    assignmentHistory: [
+      {
+        id: "ah-1",
+        createdAt: FECHA,
+        reason: null,
+        fromAssignee: null,
+        toAssignee: { name: "Trabajador Demo" },
+        changedBy: { name: "Trabajador Demo" },
+      },
+    ],
+    ...overrides,
+  });
 }
 
 describe("consultas del panel del trabajador", () => {
@@ -92,29 +120,44 @@ describe("consultas del panel del trabajador", () => {
     }
   });
 
-  it("el detalle restringe a las suyas o aceptadas sin responsable en el where", async () => {
+  it("busca primero la reparación propia y después la libre, con el filtro en el where", async () => {
     await obtenerReparacionTrabajador("req-1", "worker-1");
 
-    const args = argumentos<ArgsConsulta>(findFirst);
-
-    expect(args.where).toEqual({
+    expect(findFirst).toHaveBeenCalledTimes(2);
+    expect(argumentos<ArgsConsulta>(findFirst, 0).where).toEqual({
       id: "req-1",
-      OR: [
-        { assigneeId: "worker-1" },
-        { status: "aceptada", assigneeId: null },
-      ],
+      assigneeId: "worker-1",
+    });
+    expect(argumentos<ArgsConsulta>(findFirst, 1).where).toEqual({
+      id: "req-1",
+      status: "aceptada",
+      assigneeId: null,
     });
   });
 
   it("el detalle nunca selecciona email ni teléfono", async () => {
     await obtenerReparacionTrabajador("req-1", "worker-1");
 
-    const { select } = argumentos<ArgsConsulta>(findFirst);
-    const serializado = JSON.stringify(select);
+    const propia = argumentos<ArgsConsulta>(findFirst, 0).select;
 
-    expect(select.client).toEqual({ select: { name: true } });
-    expect(serializado).not.toContain("email");
-    expect(serializado).not.toContain("phone");
+    expect(propia.client).toEqual({ select: { name: true } });
+
+    for (const llamada of findFirst.mock.calls) {
+      const serializado = JSON.stringify((llamada[0] as ArgsConsulta).select);
+      expect(serializado).not.toContain("email");
+      expect(serializado).not.toContain("phone");
+    }
+  });
+
+  it("la consulta de una reparación libre no lee historiales ni cliente", async () => {
+    await obtenerReparacionTrabajador("req-1", "worker-1");
+
+    const libre = argumentos<ArgsConsulta>(findFirst, 1).select;
+
+    expect(libre).not.toHaveProperty("client");
+    expect(libre).not.toHaveProperty("statusHistory");
+    expect(libre).not.toHaveProperty("assignmentHistory");
+    expect(libre).toMatchObject({ id: true, status: true, issue: true, timeSlot: true });
   });
 
   it("devuelve null para una reparación ajena o inexistente", async () => {
@@ -123,25 +166,34 @@ describe("consultas del panel del trabajador", () => {
     ).resolves.toBeNull();
   });
 
-  it("marca como suya la reparación asignada y muestra el nombre del cliente", async () => {
-    findFirst.mockResolvedValue(filaDetalle() as never);
+  it("una reparación propia devuelve los dos historiales y el nombre del cliente", async () => {
+    findFirst.mockResolvedValueOnce(filaPropia() as never);
 
     const detalle = await obtenerReparacionTrabajador("req-1", "worker-1");
 
+    expect(findFirst).toHaveBeenCalledTimes(1);
     expect(detalle?.esMia).toBe(true);
-    expect(detalle?.clientName).toBe("Cliente Demo");
-    expect(detalle).not.toHaveProperty("assigneeId");
+
+    if (!detalle?.esMia) {
+      throw new Error("Se esperaba una reparación propia");
+    }
+
+    expect(detalle.clientName).toBe("Cliente Demo");
+    expect(detalle.statusHistory).toHaveLength(1);
+    expect(detalle.assignmentHistory).toHaveLength(1);
     expect(detalle).not.toHaveProperty("client");
   });
 
-  it("una aceptada sin responsable no es suya y oculta el cliente", async () => {
-    findFirst.mockResolvedValue(
-      filaDetalle({ status: "aceptada", assigneeId: null }) as never,
-    );
+  it("una reparación libre no trae historiales, ni cliente, ni su nombre en ninguna parte", async () => {
+    findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(filaBase() as never);
 
     const detalle = await obtenerReparacionTrabajador("req-1", "worker-1");
 
     expect(detalle?.esMia).toBe(false);
-    expect(detalle?.clientName).toBeNull();
+    expect(detalle).not.toHaveProperty("statusHistory");
+    expect(detalle).not.toHaveProperty("assignmentHistory");
+    expect(detalle).not.toHaveProperty("client");
+    expect(detalle).not.toHaveProperty("clientName");
+    expect(JSON.stringify(detalle)).not.toContain("Cliente Demo");
   });
 });

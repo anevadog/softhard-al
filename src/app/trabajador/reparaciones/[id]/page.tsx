@@ -98,7 +98,7 @@ export default async function ReparacionTallerPage({
               ? formatearFechaCorta(reparacion.preferredDate)
               : "Sin preferencia"}
           </Dato>
-          {reparacion.clientName ? (
+          {reparacion.esMia ? (
             <Dato etiqueta="Cliente">{reparacion.clientName}</Dato>
           ) : null}
         </dl>
@@ -119,13 +119,17 @@ export default async function ReparacionTallerPage({
         )}
       </Seccion>
 
-      <Seccion titulo="Historial de estados">
-        <StatusHistory entradas={reparacion.statusHistory} />
-      </Seccion>
+      {reparacion.esMia ? (
+        <>
+          <Seccion titulo="Historial de estados">
+            <StatusHistory entradas={reparacion.statusHistory} />
+          </Seccion>
 
-      <Seccion titulo="Historial de asignaciones">
-        <AssignmentHistory entradas={reparacion.assignmentHistory} />
-      </Seccion>
+          <Seccion titulo="Historial de asignaciones">
+            <AssignmentHistory entradas={reparacion.assignmentHistory} />
+          </Seccion>
+        </>
+      ) : null}
     </div>
   );
 }

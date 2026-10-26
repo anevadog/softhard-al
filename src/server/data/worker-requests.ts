@@ -51,26 +51,30 @@ export async function listarReparacionesParaTomar(): Promise<
   });
 }
 
+const SELECT_DETALLE_BASE = {
+  ...SELECT_RESUMEN,
+  timeSlot: true,
+  preferredDate: true,
+} satisfies Prisma.ServiceRequestSelect;
+
 /**
  * Detalle para el trabajador: solo si es suya o está aceptada y sin
  * responsable. Una reparación ajena y una inexistente devuelven lo mismo
  * (`null`), así que la página no revela si existe. Email y teléfono del
  * cliente no se seleccionan nunca.
+ *
+ * Cada caso tiene su propia consulta: los historiales y el nombre del
+ * cliente solo se leen cuando la reparación es del trabajador. De una libre
+ * solo se lee lo necesario para decidir si tomarla.
  */
 export async function obtenerReparacionTrabajador(
   id: string,
   userId: string,
 ): Promise<ReparacionTallerDetalle | null> {
-  const reparacion = await prisma.serviceRequest.findFirst({
-    where: {
-      id,
-      OR: [{ assigneeId: userId }, { status: "aceptada", assigneeId: null }],
-    },
+  const propia = await prisma.serviceRequest.findFirst({
+    where: { id, assigneeId: userId },
     select: {
-      ...SELECT_RESUMEN,
-      timeSlot: true,
-      preferredDate: true,
-      assigneeId: true,
+      ...SELECT_DETALLE_BASE,
       client: { select: { name: true } },
       statusHistory: {
         orderBy: { createdAt: "desc" },
@@ -97,16 +101,16 @@ export async function obtenerReparacionTrabajador(
     },
   });
 
-  if (!reparacion) {
-    return null;
+  if (propia) {
+    const { client, ...resto } = propia;
+
+    return { ...resto, esMia: true, clientName: client.name };
   }
 
-  const { assigneeId, client, ...resto } = reparacion;
-  const esMia = assigneeId === userId;
+  const libre = await prisma.serviceRequest.findFirst({
+    where: { id, status: "aceptada", assigneeId: null },
+    select: SELECT_DETALLE_BASE,
+  });
 
-  return {
-    ...resto,
-    esMia,
-    clientName: esMia ? client.name : null,
-  };
+  return libre ? { ...libre, esMia: false } : null;
 }

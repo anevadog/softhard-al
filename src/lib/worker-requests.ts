@@ -55,19 +55,24 @@ export type AsignacionHistorialTaller = {
   reason: string | null;
 };
 
-/**
- * Detalle visible para el trabajador. `esMia` distingue sus reparaciones de las
- * aceptadas sin responsable, que solo puede consultar y tomar. El nombre del
- * cliente solo se rellena cuando la reparación ya es suya.
- */
-export type ReparacionTallerDetalle = ReparacionTallerResumen & {
+type ReparacionTallerBase = ReparacionTallerResumen & {
   timeSlot: TimeSlot;
   preferredDate: Date | null;
-  esMia: boolean;
-  clientName: string | null;
-  statusHistory: EstadoHistorialTaller[];
-  assignmentHistory: AsignacionHistorialTaller[];
 };
+
+/**
+ * Detalle visible para el trabajador. `esMia` distingue sus reparaciones de las
+ * aceptadas sin responsable, que solo puede consultar y tomar: de esas no hay
+ * historiales ni nombre del cliente.
+ */
+export type ReparacionTallerDetalle =
+  | (ReparacionTallerBase & {
+      esMia: true;
+      clientName: string;
+      statusHistory: EstadoHistorialTaller[];
+      assignmentHistory: AsignacionHistorialTaller[];
+    })
+  | (ReparacionTallerBase & { esMia: false });
 
 export type GrupoReparaciones<T> = {
   estado: ServiceStatus;
