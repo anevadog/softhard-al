@@ -82,6 +82,7 @@ export async function obtenerSolicitudAdmin(
       preferredDate: true,
       expiresAt: true,
       client: { select: { name: true, email: true, phone: true } },
+      assignee: { select: { id: true, name: true, email: true } },
       quote: {
         select: {
           id: true,
@@ -92,6 +93,17 @@ export async function obtenerSolicitudAdmin(
           expiresAt: true,
           decidedAt: true,
           createdAt: true,
+        },
+      },
+      assignmentHistory: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          createdAt: true,
+          reason: true,
+          fromAssignee: { select: { name: true, email: true } },
+          toAssignee: { select: { name: true, email: true } },
+          changedBy: { select: { name: true, email: true } },
         },
       },
     },

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ESTADOS_FINALES,
   TRANSICIONES_NORMALES,
+  esEstadoFinal,
   estadosDisponibles,
   evaluarCambioEstado,
   necesitaPresupuesto,
@@ -58,6 +60,29 @@ describe("TRANSICIONES_NORMALES", () => {
       expect(TRANSICIONES_NORMALES[rol].esperando_repuesto).not.toContain(
         "lista",
       );
+    }
+  });
+});
+
+describe("estados finales", () => {
+  it("marca entregada, rechazada y expirada como finales", () => {
+    expect(ESTADOS_FINALES).toEqual(["entregada", "rechazada", "expirada"]);
+
+    for (const estado of ESTADOS_FINALES) {
+      expect(esEstadoFinal(estado)).toBe(true);
+    }
+  });
+
+  it("no marca como finales los estados operativos", () => {
+    for (const estado of [
+      "pendiente",
+      "diagnosticada",
+      "aceptada",
+      "en_reparacion",
+      "esperando_repuesto",
+      "lista",
+    ] as const) {
+      expect(esEstadoFinal(estado)).toBe(false);
     }
   });
 });

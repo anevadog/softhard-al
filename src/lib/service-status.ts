@@ -67,6 +67,19 @@ export const TRANSICIONES_NORMALES: Record<
 };
 
 /**
+ * Estados finales: no admiten asignación, reasignación ni devolución.
+ */
+export const ESTADOS_FINALES = [
+  "entregada",
+  "rechazada",
+  "expirada",
+] as const satisfies readonly ServiceStatus[];
+
+export function esEstadoFinal(estado: ServiceStatus): boolean {
+  return (ESTADOS_FINALES as readonly ServiceStatus[]).includes(estado);
+}
+
+/**
  * Estados que implican una decisión sobre el presupuesto: sin presupuesto no
  * hay importe que aceptar ni rechazar.
  */

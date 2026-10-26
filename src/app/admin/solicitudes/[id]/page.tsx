@@ -2,20 +2,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { AssignmentForm } from "@/components/admin/assignment-form";
 import { QuoteForm } from "@/components/admin/quote-form";
 import { StatusForm } from "@/components/admin/status-form";
 import { QuoteSummary } from "@/components/service-requests/quote-summary";
 import { StatusBadge } from "@/components/service-requests/status-badge";
-import { formatearFechaCorta } from "@/lib/format";
+import { formatearFechaCorta, formatearFechaHora } from "@/lib/format";
 import {
   EQUIPMENT_LABELS,
   MODALITY_LABELS,
   TIME_SLOT_LABELS,
 } from "@/lib/service-requests";
+import { esEstadoFinal } from "@/lib/service-status";
 import {
   obtenerConfig,
   obtenerSolicitudAdmin,
 } from "@/server/data/admin-requests";
+import { listarTrabajadoresAsignables } from "@/server/data/assignments";
 import { requerirStaff } from "@/server/authorization";
 
 export const metadata = {
@@ -27,10 +30,14 @@ export default async function AdminSolicitudPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ presupuesto?: string; estado?: string }>;
+  searchParams: Promise<{
+    presupuesto?: string;
+    estado?: string;
+    asignacion?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { presupuesto, estado } = await searchParams;
+  const { presupuesto, estado, asignacion } = await searchParams;
   const staff = await requerirStaff();
   const solicitud = await obtenerSolicitudAdmin(id);
 
@@ -39,6 +46,9 @@ export default async function AdminSolicitudPage({
   }
 
   const config = await obtenerConfig();
+  const trabajadores = esEstadoFinal(solicitud.status)
+    ? []
+    : await listarTrabajadoresAsignables();
 
   return (
     <div className="space-y-6">
@@ -77,6 +87,15 @@ export default async function AdminSolicitudPage({
           role="status"
         >
           Estado actualizado.
+        </p>
+      ) : null}
+
+      {asignacion === "1" ? (
+        <p
+          className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          role="status"
+        >
+          Responsable actualizado.
         </p>
       ) : null}
 
@@ -164,8 +183,58 @@ export default async function AdminSolicitudPage({
               />
             </div>
           </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-base font-semibold text-slate-900">
+              Asignación
+            </h2>
+            <div className="mt-4">
+              <AssignmentForm
+                requestId={solicitud.id}
+                currentAssignee={solicitud.assignee}
+                workers={trabajadores}
+                finalizada={esEstadoFinal(solicitud.status)}
+              />
+            </div>
+          </section>
         </div>
       </div>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-base font-semibold text-slate-900">
+          Historial de asignaciones
+        </h2>
+        {solicitud.assignmentHistory.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">
+            Todavía no hay cambios de responsable.
+          </p>
+        ) : (
+          <ol className="mt-4 space-y-3">
+            {solicitud.assignmentHistory.map((entrada) => (
+              <li
+                key={entrada.id}
+                className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm"
+              >
+                <p className="font-medium text-slate-900">
+                  {entrada.fromAssignee?.name ?? "Sin responsable"} →{" "}
+                  {entrada.toAssignee?.name ?? "Sin responsable"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {entrada.changedBy
+                    ? `Por ${entrada.changedBy.name}`
+                    : "Automático"}{" "}
+                  · {formatearFechaHora(entrada.createdAt)}
+                </p>
+                {entrada.reason ? (
+                  <p className="mt-1 text-xs text-slate-600">
+                    Motivo: {entrada.reason}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </div>
   );
 }

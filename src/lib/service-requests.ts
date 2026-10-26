@@ -130,6 +130,16 @@ export type SolicitudAdminResumen = {
   quote: { id: string } | null;
 };
 
+/** Entrada del historial de responsables de una reparación. */
+export type AsignacionHistorial = {
+  id: string;
+  createdAt: Date;
+  fromAssignee: { name: string; email: string } | null;
+  toAssignee: { name: string; email: string } | null;
+  changedBy: { name: string; email: string } | null;
+  reason: string | null;
+};
+
 /** Detalle de una solicitud en el panel interno. */
 export type SolicitudAdminDetalle = {
   id: string;
@@ -144,7 +154,9 @@ export type SolicitudAdminDetalle = {
   preferredDate: Date | null;
   expiresAt: Date | null;
   client: { name: string; email: string; phone: string | null };
+  assignee: { id: string; name: string; email: string } | null;
   quote: PresupuestoAdmin | null;
+  assignmentHistory: AsignacionHistorial[];
 };
 
 /** Presupuesto tal y como lo ve el cliente. */
