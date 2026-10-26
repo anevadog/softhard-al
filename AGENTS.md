@@ -15,8 +15,8 @@ Proyecto de portfolio del dueño. Repo privado. Datos ficticios en demo.
 ## Estructura
 - `src/app/(public)/` landing y páginas públicas
 - `src/app/(auth)/` login y registro
-- `src/app/(app)/` área cliente autenticado
-- `src/app/(admin)/` panel interno (encargado/admin)
+- `src/app/app/` área cliente autenticado
+- `src/app/admin/` panel interno (encargado/admin)
 - `src/components/` UI reutilizable
 - `src/lib/` db, auth, utilidades
 - `src/server/` server actions y queries
