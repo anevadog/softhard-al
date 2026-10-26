@@ -128,6 +128,8 @@ export type SolicitudAdminResumen = {
   model: string;
   client: { name: string; email: string };
   quote: { id: string } | null;
+  /** Notas de falta de repuesto sin atender: se destacan en el listado. */
+  faltasRepuestoPendientes: number;
 };
 
 /** Entrada del historial de responsables de una reparación. */

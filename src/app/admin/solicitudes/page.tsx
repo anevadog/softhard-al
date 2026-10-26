@@ -9,6 +9,7 @@ import {
   contarPorEstado,
   listarSolicitudesAdmin,
 } from "@/server/data/admin-requests";
+import { contarFaltasRepuestoPendientes } from "@/server/data/request-notes";
 import { expirarPresupuestosVencidos } from "@/server/data/service-requests";
 
 export const metadata = {
@@ -26,9 +27,10 @@ export default async function AdminSolicitudesPage({
   // Expiraciones perezosas: así los contadores y el listado cuadran.
   await expirarPresupuestosVencidos();
 
-  const [solicitudes, conteos] = await Promise.all([
+  const [solicitudes, conteos, faltasPendientes] = await Promise.all([
     listarSolicitudesAdmin(filtro),
     contarPorEstado(),
+    contarFaltasRepuestoPendientes(),
   ]);
 
   const total = Object.values(conteos).reduce((suma, valor) => suma + valor, 0);
@@ -45,6 +47,18 @@ export default async function AdminSolicitudesPage({
             : `${total} ${total === 1 ? "solicitud registrada" : "solicitudes registradas"}.`}
         </p>
       </div>
+
+      {faltasPendientes > 0 ? (
+        <p
+          className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          role="status"
+        >
+          {faltasPendientes === 1
+            ? "Hay 1 falta de repuesto sin atender."
+            : `Hay ${faltasPendientes} faltas de repuesto sin atender.`}{" "}
+          Están marcadas en el listado; atiéndelas desde el detalle de cada solicitud.
+        </p>
+      ) : null}
 
       <nav aria-label="Filtrar por estado" className="flex flex-wrap gap-2 text-sm">
         <FiltroLink

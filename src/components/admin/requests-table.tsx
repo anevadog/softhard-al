@@ -61,7 +61,10 @@ export function RequestsTable({
                   {formatearFechaCorta(solicitud.createdAt)}
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={solicitud.status} />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={solicitud.status} />
+                    <FaltasRepuesto total={solicitud.faltasRepuestoPendientes} />
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-slate-600">
                   {solicitud.quote ? "Creado" : "Sin crear"}
@@ -103,10 +106,27 @@ export function RequestsTable({
                 {formatearFechaCorta(solicitud.createdAt)} ·{" "}
                 {solicitud.quote ? "Con presupuesto" : "Sin presupuesto"}
               </p>
+              {solicitud.faltasRepuestoPendientes > 0 ? (
+                <div className="mt-2">
+                  <FaltasRepuesto total={solicitud.faltasRepuestoPendientes} />
+                </div>
+              ) : null}
             </Link>
           </li>
         ))}
       </ul>
     </>
+  );
+}
+
+function FaltasRepuesto({ total }: { total: number }) {
+  if (total === 0) {
+    return null;
+  }
+
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-300">
+      {total === 1 ? "Falta repuesto" : `${total} faltas de repuesto`}
+    </span>
   );
 }

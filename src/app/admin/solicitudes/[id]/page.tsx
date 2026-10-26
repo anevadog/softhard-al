@@ -5,9 +5,12 @@ import type { ReactNode } from "react";
 import { AssignmentForm } from "@/components/admin/assignment-form";
 import { QuoteForm } from "@/components/admin/quote-form";
 import { StatusForm } from "@/components/admin/status-form";
+import { ResolveNoteForm } from "@/components/admin/resolve-note-form";
 import { StaffWorkLogActions } from "@/components/admin/work-log-staff-actions";
 import { QuoteSummary } from "@/components/service-requests/quote-summary";
 import { StatusBadge } from "@/components/service-requests/status-badge";
+import { NoteForm } from "@/components/taller/note-form";
+import { NoteList } from "@/components/taller/note-list";
 import { WorkLogList } from "@/components/taller/work-log-list";
 import { formatearFechaCorta, formatearFechaHora } from "@/lib/format";
 import {
@@ -21,6 +24,8 @@ import {
   obtenerSolicitudAdmin,
 } from "@/server/data/admin-requests";
 import { listarTrabajadoresAsignables } from "@/server/data/assignments";
+import { esFaltaPendiente } from "@/lib/request-notes";
+import { listarNotasReparacion } from "@/server/data/request-notes";
 import { listarFichajesReparacion } from "@/server/data/work-logs";
 import { requerirStaff } from "@/server/authorization";
 
@@ -38,10 +43,11 @@ export default async function AdminSolicitudPage({
     estado?: string;
     asignacion?: string;
     fichaje?: string;
+    nota?: string;
   }>;
 }) {
   const { id } = await params;
-  const { presupuesto, estado, asignacion, fichaje } = await searchParams;
+  const { presupuesto, estado, asignacion, fichaje, nota } = await searchParams;
   const staff = await requerirStaff();
   const solicitud = await obtenerSolicitudAdmin(id);
 
@@ -53,7 +59,10 @@ export default async function AdminSolicitudPage({
   const trabajadores = esEstadoFinal(solicitud.status)
     ? []
     : await listarTrabajadoresAsignables();
-  const fichajes = await listarFichajesReparacion(solicitud.id);
+  const [fichajes, notas] = await Promise.all([
+    listarFichajesReparacion(solicitud.id),
+    listarNotasReparacion(solicitud.id),
+  ]);
   const ahora = new Date();
 
   return (
@@ -111,6 +120,15 @@ export default async function AdminSolicitudPage({
           role="status"
         >
           Fichaje actualizado.
+        </p>
+      ) : null}
+
+      {nota === "1" || nota === "atendida" ? (
+        <p
+          className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          role="status"
+        >
+          {nota === "1" ? "Nota añadida." : "Falta de repuesto marcada como atendida."}
         </p>
       ) : null}
 
@@ -214,6 +232,24 @@ export default async function AdminSolicitudPage({
           </section>
         </div>
       </div>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-base font-semibold text-slate-900">Notas del taller</h2>
+        <p className="mt-1 text-xs text-slate-500">Internas: el cliente no las ve.</p>
+        <div className="mt-4 grid gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <NoteList
+              notas={notas}
+              acciones={(item) =>
+                esFaltaPendiente(item) ? <ResolveNoteForm noteId={item.id} /> : null
+              }
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <NoteForm requestId={solicitud.id} />
+          </div>
+        </div>
+      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="text-base font-semibold text-slate-900">Fichajes</h2>

@@ -15,6 +15,8 @@ import { prisma } from "@/lib/db";
 import {
   decidirPresupuestoCliente,
   expirarPresupuestosVencidos,
+  listarSolicitudesCliente,
+  obtenerSolicitudCliente,
 } from "@/server/data/service-requests";
 
 function crearTx() {
@@ -145,5 +147,34 @@ describe("transiciones no manuales", () => {
         reason: "Presupuesto vencido",
       },
     });
+  });
+});
+
+describe("privacidad del área de cliente", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const tx = crearTx();
+    tx.serviceRequest.findMany.mockResolvedValue([]);
+    configurarTransaccion(tx);
+    vi.mocked(prisma.serviceRequest.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.serviceRequest.findFirst).mockResolvedValue(null);
+  });
+
+  it("las consultas del cliente nunca seleccionan notas internas, fichajes ni historiales", async () => {
+    await listarSolicitudesCliente("client-1");
+    await obtenerSolicitudCliente("req-1", "client-1");
+
+    const selects = [
+      vi.mocked(prisma.serviceRequest.findMany).mock.calls[0]?.[0]?.select,
+      vi.mocked(prisma.serviceRequest.findFirst).mock.calls[0]?.[0]?.select,
+    ];
+
+    for (const select of selects) {
+      expect(select).toBeDefined();
+      expect(select).not.toHaveProperty("notes");
+      expect(select).not.toHaveProperty("workLogs");
+      expect(select).not.toHaveProperty("statusHistory");
+      expect(select).not.toHaveProperty("assignmentHistory");
+    }
   });
 });

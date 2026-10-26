@@ -31,7 +31,7 @@ export async function obtenerConfig(): Promise<ConfigNegocio | null> {
 export async function listarSolicitudesAdmin(
   estado?: ServiceStatus,
 ): Promise<SolicitudAdminResumen[]> {
-  return prisma.serviceRequest.findMany({
+  const solicitudes = await prisma.serviceRequest.findMany({
     where: estado ? { status: estado } : undefined,
     orderBy: { createdAt: "desc" },
     select: {
@@ -43,8 +43,19 @@ export async function listarSolicitudesAdmin(
       model: true,
       client: { select: { name: true, email: true } },
       quote: { select: { id: true } },
+      // Recuento filtrado en la misma consulta: sin cargar las notas.
+      _count: {
+        select: {
+          notes: { where: { type: "falta_repuesto", resolvedAt: null } },
+        },
+      },
     },
   });
+
+  return solicitudes.map(({ _count, ...solicitud }) => ({
+    ...solicitud,
+    faltasRepuestoPendientes: _count.notes,
+  }));
 }
 
 export async function contarPorEstado(): Promise<Record<ServiceStatus, number>> {

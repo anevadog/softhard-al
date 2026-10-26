@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { StatusBadge } from "@/components/service-requests/status-badge";
+import { NoteForm } from "@/components/taller/note-form";
+import { NoteList } from "@/components/taller/note-list";
 import { AssignmentHistory, StatusHistory } from "@/components/taller/repair-history";
 import { ReturnForm } from "@/components/taller/return-form";
 import { TakeForm } from "@/components/taller/take-form";
@@ -18,6 +20,7 @@ import {
 import { esEstadoFinal } from "@/lib/service-status";
 import { excedeHorasAbierto, formatearDuracion, minutosFichaje } from "@/lib/work-logs";
 import { requerirPersonalTaller } from "@/server/authorization";
+import { listarNotasReparacionTrabajador } from "@/server/data/request-notes";
 import {
   listarFichajesReparacionTrabajador,
   obtenerFichajeAbierto,
@@ -34,10 +37,15 @@ export default async function ReparacionTallerPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tomada?: string; estado?: string; fichaje?: string }>;
+  searchParams: Promise<{
+    tomada?: string;
+    estado?: string;
+    fichaje?: string;
+    nota?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { tomada, estado, fichaje } = await searchParams;
+  const { tomada, estado, fichaje, nota } = await searchParams;
   const usuario = await requerirPersonalTaller();
 
   // Encargado y admin gestionan la reparación desde el panel.
@@ -52,14 +60,15 @@ export default async function ReparacionTallerPage({
   }
 
   const finalizada = esEstadoFinal(reparacion.status);
-  // Los fichajes solo se consultan para reparaciones propias.
-  const [abierto, fichajes, horasAviso] = reparacion.esMia
+  // Fichajes y notas solo se consultan para reparaciones propias.
+  const [abierto, fichajes, horasAviso, notas] = reparacion.esMia
     ? await Promise.all([
         obtenerFichajeAbierto(usuario.id),
         listarFichajesReparacionTrabajador(reparacion.id, usuario.id),
         obtenerHorasFichajeAbierto(),
+        listarNotasReparacionTrabajador(reparacion.id, usuario.id),
       ])
-    : [null, [], 0];
+    : [null, [], 0, []];
   const ahora = new Date();
   const abiertoAqui = abierto?.request?.id === reparacion.id ? abierto : null;
 
@@ -93,6 +102,8 @@ export default async function ReparacionTallerPage({
       {fichaje === "entrada" ? <Aviso>Entrada fichada.</Aviso> : null}
 
       {fichaje === "salida" ? <Aviso>Salida fichada.</Aviso> : null}
+
+      {nota === "1" ? <Aviso>Nota añadida.</Aviso> : null}
 
       <Seccion titulo="Equipo y avería">
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
@@ -192,6 +203,13 @@ export default async function ReparacionTallerPage({
                 mostrarTrabajador
                 vacio="Todavía no hay fichajes en esta reparación."
               />
+            </div>
+          </Seccion>
+
+          <Seccion titulo="Notas">
+            <div className="space-y-4">
+              {finalizada ? null : <NoteForm requestId={reparacion.id} recordarEstado />}
+              <NoteList notas={notas} />
             </div>
           </Seccion>
 

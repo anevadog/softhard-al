@@ -4,11 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db", () => ({
   prisma: {
     $transaction: vi.fn(),
+    serviceRequest: { findMany: vi.fn() },
   },
 }));
 
 import { prisma } from "@/lib/db";
-import { crearPresupuesto } from "@/server/data/admin-requests";
+import { crearPresupuesto, listarSolicitudesAdmin } from "@/server/data/admin-requests";
 
 function crearTx() {
   return {
@@ -120,5 +121,32 @@ describe("crearPresupuesto", () => {
       where: { id: "req-1" },
       data: { lastActivityAt: expect.any(Date) },
     });
+  });
+});
+
+describe("listarSolicitudesAdmin", () => {
+  it("cuenta en la consulta solo las faltas de repuesto sin atender", async () => {
+    vi.mocked(prisma.serviceRequest.findMany).mockResolvedValue([
+      {
+        id: "req-1",
+        createdAt: new Date("2026-10-26T10:00:00Z"),
+        status: "en_reparacion",
+        equipmentType: "portatil",
+        brand: "HP",
+        model: "440",
+        client: { name: "Cliente Demo", email: "cliente@demo.local" },
+        quote: null,
+        _count: { notes: 2 },
+      },
+    ] as never);
+
+    const [fila] = await listarSolicitudesAdmin();
+    const args = vi.mocked(prisma.serviceRequest.findMany).mock.calls[0]?.[0];
+
+    expect(args?.select?._count).toEqual({
+      select: { notes: { where: { type: "falta_repuesto", resolvedAt: null } } },
+    });
+    expect(fila?.faltasRepuestoPendientes).toBe(2);
+    expect(fila).not.toHaveProperty("_count");
   });
 });
