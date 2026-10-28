@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 completada` · `Fase 3 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `457 tests`
+`Fase 1 completada` · `Fase 2 completada` · `Fase 3 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `487 tests + 13 de integración`
 
 ## Capturas
 
@@ -225,6 +225,7 @@ En el panel, `admin` y `encargado` comparten permisos. Solo el rol `trabajador` 
 | `npm run typecheck` | Comprobación de tipos con TypeScript |
 | `npm run test` | Ejecuta la suite de Vitest una vez |
 | `npm run test:watch` | Vitest en modo vigilancia |
+| `npm run test:integration` | Tests de integración contra PostgreSQL real (base `softhard_test`) |
 
 Comandos de base de datos:
 
@@ -398,10 +399,14 @@ pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **457 tests** en 51 archivos (`npm run test`), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, y reportes.
-- Los tests de la transacción usan Prisma mockeado; el flujo real de checkout, stock, ajustes, pedidos y taller se verificó manualmente contra PostgreSQL, con rollback en las pruebas del taller.
+- **487 tests unitarios** en 56 archivos (`npm run test`, sin base de datos), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, reportes, límite de intentos de login y dirección de recogida. La capa de datos se prueba con Prisma mockeado.
+- **13 tests de integración** (`npm run test:integration`) contra PostgreSQL real: índice único parcial de fichajes (`P2002`), check de salida, filtros por relación en `updateMany`, recuentos filtrados, cambio de hora en los reportes, límite de login y privacidad del cliente. Usan una base aparte, `<base>_test`, derivada de `DATABASE_URL` (solo hosts locales); cada test va en una transacción que se revierte, y antes se aplican las migraciones con `prisma migrate deploy`. La base se crea una vez:
+
+  ```bash
+  docker compose exec db createdb -U postgres softhard_test
+  ```
 - TypeScript estricto y ESLint en cada cambio.
-- **Deuda conocida:** no hay tests de integración automáticos con base de datos real. Los pedidos pendientes retienen stock hasta que se cancelan y no se libera automáticamente.
+- **Deuda conocida:** los pedidos pendientes retienen stock hasta que se cancelan y no se libera automáticamente; checkout y pedidos aún no tienen tests de integración.
 
 ### Server Components y Server Actions
 
@@ -465,7 +470,6 @@ Estas funciones quedan fuera del alcance actual (ver también la spec de la Fase
 - Emails automáticos y notificaciones push.
 - Historial completo de correcciones de fichajes y control de solapes tras una corrección: solo se guarda el último editor (deuda anotada).
 - Rate limiting en el login (deuda técnica anotada).
-- Tests de integración automáticos con base de datos real (deuda técnica anotada).
 
 ## Documentación
 

@@ -4,7 +4,7 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
 - **Fases 1, 2 y 3 completas** (último commit `255f814`, con push). Fase de deuda en curso: D1 rate limiting → D2 formularios → D3 dirección → D4 tests de integración → D5 menores.
-- **D3** cerrada con commit `feat(solicitudes)`: `ServiceRequest.address` (migración `20261028170425_direccion_domicilio` aplicada; `migrate diff` vacío), obligatoria en domicilio (5–200), nula en taller; visible al cliente, en el panel y al trabajador solo en sus reparaciones. **D2** en `6dd7f11`: los 8 formularios pasan a `onSubmit` + `useTransition` (sin `useActionState` en el proyecto). **D1** cerrada con commit `578f5bb`: migración `20261028165149_rate_limit_login` aplicada con `migrate deploy`; `migrate diff` vacío.
+- **D4** cerrada con commit `test(integracion)`: `npm run test:integration` (13 tests en `*.int.test.ts`) contra `softhard_test` (creada vacía con permiso; migrada en el global setup), rollback por test con `src/test/integration/db.ts`. **D3** en `2f19e51`: `ServiceRequest.address` (migración `20261028170425_direccion_domicilio` aplicada; `migrate diff` vacío), obligatoria en domicilio (5–200), nula en taller; visible al cliente, en el panel y al trabajador solo en sus reparaciones. **D2** en `6dd7f11`: los 8 formularios pasan a `onSubmit` + `useTransition` (sin `useActionState` en el proyecto). **D1** cerrada con commit `578f5bb`: migración `20261028165149_rate_limit_login` aplicada con `migrate deploy`; `migrate diff` vacío.
 
 ## Stack y entorno
 - Node 24.22.1 · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7 · Prisma 7.10.1 + adapter-pg · PostgreSQL 16.15 local (`localhost:5432`, BD `softhard`) · ESLint 9. Auth: next-auth 5.0.0-beta.32 + bcrypt coste 12. Git Bash: `npm`/`npx` normales. `npm run build` ejecuta `migrate deploy`.
@@ -44,7 +44,7 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 - `authorize` en `lib/credentials.ts` (no en la acción: el endpoint de Auth.js es público); bloqueado lanza `DemasiadosIntentos` (`CredentialsSignin`, código `rate_limited`) y la acción lo traduce. Tests mockean `next-auth` (no carga en Vitest).
 
 ## Tests, QA y deuda
-- **483 tests en 55 archivos**; `typecheck`, `lint` y `build` limpios en D3.
+- **487 tests unitarios en 56 archivos + 13 de integración**; `typecheck`, `lint` y `build` limpios en D4.
 - QA 3.3–3.7 y D1 con rollback y 0 residuos (scripts en el scratchpad). Navegador solo vistas sin escritura.
-- Deuda: correcciones de fichaje sin historial completo y sin control de solapes; pedidos pendientes retienen stock; sin tests de integración con BD real; emails.
+- Deuda: correcciones de fichaje sin historial completo y sin control de solapes; pedidos pendientes retienen stock; checkout y pedidos sin tests de integración; emails.
 - Aprendizajes: Prisma 7 exige driver adapter y `output`; Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.

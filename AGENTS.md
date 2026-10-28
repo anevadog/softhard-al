@@ -34,7 +34,8 @@ Proyecto de portfolio del dueño. Repo privado. Datos ficticios en demo.
 - `npm run build` build
 - `npm run lint` lint
 - `npm run typecheck` comprobación de tipos
-- `npm run test` vitest
+- `npm run test` vitest (unitarios, sin BD)
+- `npm run test:integration` tests `*.int.test.ts` contra la base local `<base>_test` (con rollback)
 - `npx prisma migrate dev --create-only --name <nombre>` genera la migración sin aplicarla
 - `npx prisma migrate deploy` aplica las migraciones pendientes (tras revisar el SQL)
 - `npx prisma validate` valida el esquema
