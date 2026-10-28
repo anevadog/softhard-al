@@ -9,6 +9,7 @@ const VALID = {
   issue: "No arranca después de la última actualización.",
   modality: "domicilio",
   timeSlot: "manana",
+  address: "Calle de Ejemplo 12, 28001 Madrid",
 } as const;
 
 describe("serviceRequestSchema", () => {
@@ -64,5 +65,39 @@ describe("serviceRequestSchema", () => {
 
   it("rechaza un formulario sin campos", () => {
     expect(serviceRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("exige la dirección en recogida a domicilio y la recorta", () => {
+    const sinDireccion = serviceRequestSchema.safeParse({ ...VALID, address: "   " });
+
+    expect(sinDireccion.success).toBe(false);
+    expect(sinDireccion.error?.issues[0]?.path).toEqual(["address"]);
+    expect(sinDireccion.error?.issues[0]?.message).toBe("Indica la dirección de recogida");
+    expect(serviceRequestSchema.safeParse({ ...VALID, address: "C/ 1" }).success).toBe(false);
+    expect(serviceRequestSchema.parse({ ...VALID, address: "  Calle Mayor 1  " }).address).toBe(
+      "Calle Mayor 1",
+    );
+  });
+
+  it("limita la dirección a 200 caracteres", () => {
+    expect(serviceRequestSchema.safeParse({ ...VALID, address: "a".repeat(201) }).success).toBe(
+      false,
+    );
+  });
+
+  it("en taller no pide dirección y descarta la que llegue", () => {
+    const enTaller = {
+      equipmentType: VALID.equipmentType,
+      brand: VALID.brand,
+      model: VALID.model,
+      issue: VALID.issue,
+      timeSlot: VALID.timeSlot,
+      modality: "taller" as const,
+    };
+
+    expect(serviceRequestSchema.parse(enTaller).address).toBeNull();
+    expect(
+      serviceRequestSchema.parse({ ...enTaller, address: "Calle inyectada 9" }).address,
+    ).toBeNull();
   });
 });

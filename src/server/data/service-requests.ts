@@ -29,6 +29,7 @@ export async function crearSolicitudCliente(
       model: input.model,
       issue: input.issue,
       modality: input.modality,
+      address: input.address,
       timeSlot: input.timeSlot,
     },
     select: { id: true },
@@ -142,6 +143,7 @@ export async function obtenerSolicitudCliente(
       model: true,
       issue: true,
       modality: true,
+      address: true,
       timeSlot: true,
       quote: {
         select: {

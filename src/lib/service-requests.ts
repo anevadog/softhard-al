@@ -156,6 +156,7 @@ export type SolicitudAdminDetalle = {
   timeSlot: TimeSlot;
   preferredDate: Date | null;
   expiresAt: Date | null;
+  address: string | null;
   client: { name: string; email: string; phone: string | null };
   assignee: { id: string; name: string; email: string } | null;
   quote: PresupuestoAdmin | null;
@@ -183,6 +184,7 @@ export type SolicitudClienteDetalle = {
   model: string;
   issue: string;
   modality: Modality;
+  address: string | null;
   timeSlot: TimeSlot;
   quote: PresupuestoCliente | null;
 };

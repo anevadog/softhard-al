@@ -137,6 +137,11 @@ export default async function ReparacionTallerPage({
           {reparacion.esMia ? (
             <Dato etiqueta="Cliente">{reparacion.clientName}</Dato>
           ) : null}
+          {reparacion.esMia && reparacion.modality === "domicilio" ? (
+            <Dato etiqueta="Dirección de recogida">
+              {reparacion.address ?? "No indicada"}
+            </Dato>
+          ) : null}
         </dl>
       </Seccion>
 

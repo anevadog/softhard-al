@@ -69,6 +69,8 @@ export type ReparacionTallerDetalle =
   | (ReparacionTallerBase & {
       esMia: true;
       clientName: string;
+      /** Dirección de recogida: solo en reparaciones propias a domicilio. */
+      address: string | null;
       statusHistory: EstadoHistorialTaller[];
       assignmentHistory: AsignacionHistorialTaller[];
     })

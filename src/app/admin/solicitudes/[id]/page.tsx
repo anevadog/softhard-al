@@ -149,6 +149,11 @@ export default async function AdminSolicitudPage({
               <Dato etiqueta="Modalidad">
                 {MODALITY_LABELS[solicitud.modality]}
               </Dato>
+              {solicitud.modality === "domicilio" ? (
+                <Dato etiqueta="Dirección de recogida">
+                  {solicitud.address ?? "No indicada"}
+                </Dato>
+              ) : null}
               <Dato etiqueta="Franja horaria">
                 {TIME_SLOT_LABELS[solicitud.timeSlot]}
               </Dato>

@@ -62,7 +62,7 @@ La Fase 3 (taller interno) está completada: asignación, panel del trabajador, 
 #### Cliente
 
 - Inicio y cierre de sesión.
-- Creación de solicitudes con validación en servidor: tipo de equipo, marca, modelo, problema, modalidad (domicilio o taller) y franja horaria.
+- Creación de solicitudes con validación en servidor: tipo de equipo, marca, modelo, problema, modalidad (domicilio o taller), dirección de recogida (obligatoria solo a domicilio) y franja horaria.
 - Listado de sus propias solicitudes y página de detalle.
 - Visualización del presupuesto: importe, tarifa de diagnóstico e importe final.
 - Aceptación o rechazo del presupuesto, con expiración automática a los 7 días.
@@ -463,7 +463,6 @@ Estas funciones quedan fuera del alcance actual (ver también la spec de la Fase
 - Pausas, aprobación de horas y nóminas.
 - Contabilidad.
 - Emails automáticos y notificaciones push.
-- Dirección del cliente para visitas a domicilio: el esquema no la tiene (deuda anotada).
 - Historial completo de correcciones de fichajes y control de solapes tras una corrección: solo se guarda el último editor (deuda anotada).
 - Rate limiting en el login (deuda técnica anotada).
 - Tests de integración automáticos con base de datos real (deuda técnica anotada).

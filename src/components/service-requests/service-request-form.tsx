@@ -10,6 +10,7 @@ import {
 
 import { LaptopIcon, MonitorIcon, PrinterIcon } from "@/components/site/icons";
 import { FORM_STATE_INICIAL, type FormState } from "@/lib/form-state";
+import { MAX_ADDRESS_LENGTH } from "@/lib/validations/service-request";
 import { crearSolicitudAction } from "@/server/actions/service-requests";
 
 const EQUIPOS = [
@@ -29,7 +30,14 @@ const FRANJAS = [
   { value: "indiferente", label: "Indiferente" },
 ] as const;
 
-type Campo = "equipmentType" | "brand" | "model" | "issue" | "modality" | "timeSlot";
+type Campo =
+  | "equipmentType"
+  | "brand"
+  | "model"
+  | "issue"
+  | "modality"
+  | "address"
+  | "timeSlot";
 
 const labelClass = "block text-sm font-medium text-slate-700";
 
@@ -63,6 +71,7 @@ export function ServiceRequestForm() {
     model: "",
     issue: "",
     modality: "",
+    address: "",
     timeSlot: "indiferente",
   });
 
@@ -203,6 +212,29 @@ export function ServiceRequestForm() {
         </div>
         <FieldError id="modality-error" messages={errors.modality} />
       </fieldset>
+
+      {/* Solo se envía en recogida a domicilio; el servidor la descarta en taller. */}
+      {valores.modality === "domicilio" ? (
+        <div>
+          <label htmlFor="address" className={labelClass}>
+            Dirección de recogida
+          </label>
+          <input
+            id="address"
+            name="address"
+            type="text"
+            autoComplete="street-address"
+            maxLength={MAX_ADDRESS_LENGTH}
+            placeholder="Calle, número, piso, código postal y ciudad"
+            value={valores.address}
+            onChange={alCambiar}
+            aria-invalid={Boolean(errors.address)}
+            aria-describedby={errors.address ? "address-error" : undefined}
+            className={inputClass}
+          />
+          <FieldError id="address-error" messages={errors.address} />
+        </div>
+      ) : null}
 
       <div className="sm:max-w-xs">
         <label htmlFor="timeSlot" className={labelClass}>

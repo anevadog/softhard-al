@@ -32,6 +32,7 @@ export async function crearSolicitudAction(
     issue: formData.get("issue"),
     modality: formData.get("modality"),
     timeSlot: formData.get("timeSlot"),
+    address: formData.get("address") ?? "",
   });
 
   if (!parsed.success) {

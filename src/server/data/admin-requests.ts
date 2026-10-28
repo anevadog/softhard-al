@@ -99,6 +99,7 @@ export async function obtenerSolicitudAdmin(
       model: true,
       issue: true,
       modality: true,
+      address: true,
       timeSlot: true,
       preferredDate: true,
       expiresAt: true,

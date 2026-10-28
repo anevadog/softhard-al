@@ -86,6 +86,8 @@ export async function obtenerReparacionTrabajador(
     where: { id, assigneeId: userId },
     select: {
       ...SELECT_DETALLE_BASE,
+      // Solo de las suyas: de una reparación libre no se lee la dirección.
+      address: true,
       client: { select: { name: true } },
       statusHistory: {
         orderBy: { createdAt: "desc" },

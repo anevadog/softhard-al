@@ -152,9 +152,10 @@ Las semanas empiezan en lunes y se calculan en la zona horaria Europe/Madrid.
 
 ## Decisiones de implementación
 - 3.2 se dividió en 3.2a (transiciones) y 3.2b (asignación).
-- Contacto del cliente: el trabajador nunca ve email ni teléfono. No existe en el
-  esquema un campo para que el encargado decida lo contrario ni un campo de
-  dirección para visitas a domicilio (deuda anotada).
+- Contacto del cliente: el trabajador nunca ve email ni teléfono; no existe en el
+  esquema un campo para que el encargado decida lo contrario. La dirección de
+  recogida (añadida en la fase de deuda, D3) solo la ve en sus reparaciones a
+  domicilio.
 - Una reparación libre (aceptada sin responsable) se ve en solo lectura, sin
   historiales ni nombre del cliente, con el botón Tomar.
 - Una reparación devuelta no aparece en «Para tomar» ni se puede tomar: solo la

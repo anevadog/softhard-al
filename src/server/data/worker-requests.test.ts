@@ -146,6 +146,7 @@ describe("consultas del panel del trabajador", () => {
     const propia = argumentos<ArgsConsulta>(findFirst, 0).select;
 
     expect(propia.client).toEqual({ select: { name: true } });
+    expect(propia.address).toBe(true);
 
     for (const llamada of findFirst.mock.calls) {
       const serializado = JSON.stringify((llamada[0] as ArgsConsulta).select);
@@ -160,6 +161,7 @@ describe("consultas del panel del trabajador", () => {
     const libre = argumentos<ArgsConsulta>(findFirst, 1).select;
 
     expect(libre).not.toHaveProperty("client");
+    expect(libre).not.toHaveProperty("address");
     expect(libre).not.toHaveProperty("statusHistory");
     expect(libre).not.toHaveProperty("assignmentHistory");
     expect(libre).toMatchObject({ id: true, status: true, issue: true, timeSlot: true });

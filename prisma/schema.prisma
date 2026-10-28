@@ -133,6 +133,9 @@ model ServiceRequest {
   model         String
   issue         String        @db.Text
   modality      Modality
+  /// Dirección de recogida; solo en modalidad `domicilio` (obligatoria al crear).
+  /// Las solicitudes anteriores a este campo la tienen nula.
+  address       String?
   preferredDate DateTime?
   timeSlot      TimeSlot      @default(indiferente)
 
