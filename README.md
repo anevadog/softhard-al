@@ -408,7 +408,7 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - **Server Components por defecto**; los componentes cliente se limitan a formularios e interacción.
 - Las páginas no tocan Prisma: la capa `src/server/data` concentra consultas y control de propiedad.
 - Las mutaciones son **Server Actions** con validación Zod y revalidación de rutas.
-- Los formularios controlados usan `onSubmit` + `useTransition` para evitar el reset de formularios de React 19 y conservar lo escrito ante errores. **Deuda conocida:** los formularios de estado y asignación del detalle del panel aún usan `useActionState`.
+- Los formularios controlados usan `onSubmit` + `useTransition` para evitar el reset de formularios de React 19 y conservar lo escrito ante errores.
 
 ## Roadmap
 

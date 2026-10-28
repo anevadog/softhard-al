@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 
-import { FORM_STATE_INICIAL } from "@/lib/form-state";
+import { FORM_STATE_INICIAL, type FormState } from "@/lib/form-state";
 import type { TrabajadorAsignable } from "@/server/data/assignments";
 import { asignarSolicitudAction } from "@/server/actions/assignments";
 
@@ -23,10 +23,23 @@ export function AssignmentForm({
   workers: TrabajadorAsignable[];
   finalizada: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(
-    asignarSolicitudAction,
-    FORM_STATE_INICIAL,
-  );
+  const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
+  const [pending, startTransition] = useTransition();
+  const [assigneeId, setAssigneeId] = useState("");
+  const [motivo, setMotivo] = useState("");
+
+  function alEnviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    startTransition(async () => {
+      // En éxito la acción redirige y esta promesa no vuelve.
+      const resultado = await asignarSolicitudAction(state, formData);
+
+      setState(resultado);
+    });
+  }
 
   if (finalizada) {
     return (
@@ -51,7 +64,7 @@ export function AssignmentForm({
   }
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form onSubmit={alEnviar} className="space-y-3">
       <input type="hidden" name="requestId" value={requestId} />
       <input
         type="hidden"
@@ -72,7 +85,8 @@ export function AssignmentForm({
           id="assigneeId"
           name="assigneeId"
           required
-          defaultValue=""
+          value={assigneeId}
+          onChange={(event) => setAssigneeId(event.target.value)}
           className={selectClass}
         >
           <option value="" disabled>
@@ -101,6 +115,8 @@ export function AssignmentForm({
           name="motivo"
           rows={2}
           maxLength={500}
+          value={motivo}
+          onChange={(event) => setMotivo(event.target.value)}
           placeholder="Puedes dejar una nota de la asignación"
           className={textareaClass}
         />

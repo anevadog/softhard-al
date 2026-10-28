@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 
 import type { ServiceStatus } from "@/generated/prisma/enums";
-import { FORM_STATE_INICIAL } from "@/lib/form-state";
+import { FORM_STATE_INICIAL, type FormState } from "@/lib/form-state";
 import { SERVICE_STATUS_META } from "@/lib/service-requests";
 import {
   opcionesCambioEstado,
@@ -28,10 +28,22 @@ export function StatusForm({
   role: RolTaller;
   tienePresupuesto: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(
-    cambiarEstadoAction,
-    FORM_STATE_INICIAL,
-  );
+  const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
+  const [pending, startTransition] = useTransition();
+  const [motivo, setMotivo] = useState("");
+
+  function alEnviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    startTransition(async () => {
+      // En éxito la acción redirige y esta promesa no vuelve.
+      const resultado = await cambiarEstadoAction(state, formData);
+
+      setState(resultado);
+    });
+  }
 
   const opciones = opcionesCambioEstado({
     actual: status,
@@ -66,7 +78,7 @@ export function StatusForm({
   }
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form onSubmit={alEnviar} className="space-y-3">
       <input type="hidden" name="requestId" value={requestId} />
       <input type="hidden" name="estadoEsperado" value={status} />
 
@@ -105,6 +117,8 @@ export function StatusForm({
           rows={2}
           maxLength={500}
           required={opcionSeleccionada?.requiereMotivo}
+          value={motivo}
+          onChange={(event) => setMotivo(event.target.value)}
           placeholder={
             opcionSeleccionada?.requiereMotivo
               ? "Explica por qué corriges el estado"

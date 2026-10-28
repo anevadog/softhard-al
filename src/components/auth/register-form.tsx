@@ -1,9 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 
 import { registerUser } from "@/server/actions/auth";
-import { AUTH_FORM_STATE_INICIAL } from "@/server/actions/auth-state";
+import { AUTH_FORM_STATE_INICIAL, type AuthFormState } from "@/server/actions/auth-state";
+
+type Campo = "name" | "email" | "password" | "confirmPassword";
+
+const inputClass =
+  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
 
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages?.length) return null;
@@ -12,11 +17,36 @@ function FieldError({ messages }: { messages?: string[] }) {
 }
 
 export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
-  const [state, formAction, pending] = useActionState(registerUser, AUTH_FORM_STATE_INICIAL);
+  const [state, setState] = useState<AuthFormState>(AUTH_FORM_STATE_INICIAL);
+  const [pending, startTransition] = useTransition();
+  const [valores, setValores] = useState<Record<Campo, string>>({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const fieldErrors = state.fieldErrors ?? {};
 
+  function cambiar(campo: Campo, valor: string) {
+    setValores((actuales) => ({ ...actuales, [campo]: valor }));
+  }
+
+  function alEnviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    startTransition(async () => {
+      // En éxito la acción redirige y esta promesa no vuelve; ante un error se
+      // conserva lo escrito para corregir solo el campo marcado.
+      const resultado = await registerUser(state, formData);
+
+      setState(resultado);
+    });
+  }
+
   return (
-    <form action={formAction} className="space-y-4" noValidate>
+    <form onSubmit={alEnviar} className="space-y-4" noValidate>
       {callbackUrl ? (
         <input type="hidden" name="callbackUrl" value={callbackUrl} />
       ) : null}
@@ -37,7 +67,9 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
           type="text"
           autoComplete="name"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          value={valores.name}
+          onChange={(event) => cambiar("name", event.target.value)}
+          className={inputClass}
         />
         <FieldError messages={fieldErrors.name} />
       </div>
@@ -52,7 +84,9 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
           type="email"
           autoComplete="email"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          value={valores.email}
+          onChange={(event) => cambiar("email", event.target.value)}
+          className={inputClass}
         />
         <FieldError messages={fieldErrors.email} />
       </div>
@@ -68,7 +102,9 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
           autoComplete="new-password"
           required
           minLength={8}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          value={valores.password}
+          onChange={(event) => cambiar("password", event.target.value)}
+          className={inputClass}
         />
         <FieldError messages={fieldErrors.password} />
         <p className="text-xs text-slate-500">Mínimo 8 caracteres.</p>
@@ -84,7 +120,9 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
           type="password"
           autoComplete="new-password"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          value={valores.confirmPassword}
+          onChange={(event) => cambiar("confirmPassword", event.target.value)}
+          className={inputClass}
         />
         <FieldError messages={fieldErrors.confirmPassword} />
       </div>

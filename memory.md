@@ -4,7 +4,7 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
 - **Fases 1, 2 y 3 completas** (último commit `255f814`, con push). Fase de deuda en curso: D1 rate limiting → D2 formularios → D3 dirección → D4 tests de integración → D5 menores.
-- **D1** cerrada con commit `feat(auth)`: migración `20261028165149_rate_limit_login` aplicada con `migrate deploy`; `migrate diff` vacío.
+- **D2** cerrada con commit `refactor(forms)`: los 8 formularios pasan a `onSubmit` + `useTransition` (sin `useActionState` en el proyecto). **D1** cerrada con commit `578f5bb`: migración `20261028165149_rate_limit_login` aplicada con `migrate deploy`; `migrate diff` vacío.
 
 ## Stack y entorno
 - Node 24.22.1 · Next 15.5.28 · React 19.1 · TS 5 · Tailwind v4 · Vitest 5 · Zod 4.6.7 · Prisma 7.10.1 + adapter-pg · PostgreSQL 16.15 local (`localhost:5432`, BD `softhard`) · ESLint 9. Auth: next-auth 5.0.0-beta.32 + bcrypt coste 12. Git Bash: `npm`/`npx` normales. `npm run build` ejecuta `migrate deploy`.
@@ -46,5 +46,5 @@ Máximo 50 líneas. Actualizar al terminar cada tarea.
 ## Tests, QA y deuda
 - **477 tests en 54 archivos**; `typecheck`, `lint` y `build` limpios en D1.
 - QA 3.3–3.7 y D1 con rollback y 0 residuos (scripts en el scratchpad). Navegador solo vistas sin escritura.
-- Deuda: sin campo de dirección (domicilio); 8 formularios usan `useActionState` (el login pierde el email al fallar); correcciones de fichaje sin historial completo y sin control de solapes; pedidos pendientes retienen stock; sin tests de integración con BD real; emails.
+- Deuda: sin campo de dirección (domicilio); correcciones de fichaje sin historial completo y sin control de solapes; pedidos pendientes retienen stock; sin tests de integración con BD real; emails.
 - Aprendizajes: Prisma 7 exige driver adapter y `output`; Auth.js v5 requiere augmentar `@auth/core/jwt` y `next-auth/jwt`.

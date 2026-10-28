@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 
 import type { OrderStatus } from "@/generated/prisma/enums";
-import { FORM_STATE_INICIAL } from "@/lib/form-state";
+import { FORM_STATE_INICIAL, type FormState } from "@/lib/form-state";
 import {
   ORDER_STATUSES,
   ORDER_STATUS_META,
@@ -21,14 +21,26 @@ export function OrderStatusForm({
   orderId: string;
   status: OrderStatus;
 }) {
-  const [state, formAction, pending] = useActionState(
-    cambiarEstadoPedidoAction,
-    FORM_STATE_INICIAL,
-  );
+  const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
+  const [pending, startTransition] = useTransition();
+  const [motivo, setMotivo] = useState("");
 
   const siguientes = ORDER_STATUSES.filter((estado) =>
     puedeCambiarEstadoPedido(status, estado),
   );
+
+  function alEnviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    startTransition(async () => {
+      // En éxito la acción redirige y esta promesa no vuelve.
+      const resultado = await cambiarEstadoPedidoAction(state, formData);
+
+      setState(resultado);
+    });
+  }
 
   if (siguientes.length === 0) {
     return (
@@ -50,7 +62,7 @@ export function OrderStatusForm({
       {siguientes
         .filter((estado) => estado !== "cancelado")
         .map((estado) => (
-          <form key={estado} action={formAction}>
+          <form key={estado} onSubmit={alEnviar}>
             <input type="hidden" name="orderId" value={orderId} />
             <input type="hidden" name="estadoEsperado" value={status} />
             <input type="hidden" name="estadoNuevo" value={estado} />
@@ -67,7 +79,11 @@ export function OrderStatusForm({
         ))}
 
       {siguientes.includes("cancelado") ? (
-        <form action={formAction} className="space-y-3 border-t border-slate-100 pt-4">
+        <form
+          onSubmit={alEnviar}
+          className="space-y-3 border-t border-slate-100 pt-4"
+          noValidate
+        >
           <input type="hidden" name="orderId" value={orderId} />
           <input type="hidden" name="estadoEsperado" value={status} />
           <input type="hidden" name="estadoNuevo" value="cancelado" />
@@ -92,6 +108,8 @@ export function OrderStatusForm({
                   rows={3}
                   required
                   maxLength={500}
+                  value={motivo}
+                  onChange={(event) => setMotivo(event.target.value)}
                   placeholder="Explica por qué se cancela el pedido"
                   className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
                   aria-invalid={Boolean(state.fieldErrors?.motivo)}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 
-import { FORM_STATE_INICIAL } from "@/lib/form-state";
+import { FORM_STATE_INICIAL, type FormState } from "@/lib/form-state";
 import {
   MAX_STOCK_NOTE_LENGTH,
   MAX_STOCK_VARIATION,
@@ -35,13 +35,25 @@ export function StockAdjustmentForm({
   productId: string;
   stock: number;
 }) {
-  const [state, formAction, pending] = useActionState(
-    ajustarStockAction,
-    FORM_STATE_INICIAL,
-  );
+  const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
+  const [pending, startTransition] = useTransition();
   const [reason, setReason] = useState<MotivoAjusteStock>("reposicion");
   const [variation, setVariation] = useState("");
+  const [note, setNote] = useState("");
   const errors = state.fieldErrors ?? {};
+
+  function alEnviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    startTransition(async () => {
+      // En éxito la acción redirige y esta promesa no vuelve.
+      const resultado = await ajustarStockAction(state, formData);
+
+      setState(resultado);
+    });
+  }
 
   const variacion = parseVariacion(variation);
   const resultante = variacion === null ? null : stock + variacion;
@@ -52,7 +64,7 @@ export function StockAdjustmentForm({
     variacion !== null && Math.abs(variacion) > MAX_STOCK_VARIATION;
 
   return (
-    <form action={formAction} className="space-y-4" noValidate>
+    <form onSubmit={alEnviar} className="space-y-4" noValidate>
       <input type="hidden" name="productId" value={productId} />
 
       <div>
@@ -145,6 +157,8 @@ export function StockAdjustmentForm({
           rows={3}
           maxLength={MAX_STOCK_NOTE_LENGTH}
           required={reason === "ajuste"}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
           placeholder={
             reason === "ajuste"
               ? "Explica el motivo del ajuste"

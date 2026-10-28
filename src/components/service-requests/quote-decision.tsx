@@ -1,18 +1,35 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 
-import { FORM_STATE_INICIAL } from "@/lib/form-state";
+import { FORM_STATE_INICIAL, type FormState } from "@/lib/form-state";
 import { decidirPresupuestoAction } from "@/server/actions/service-requests";
 
 export function QuoteDecision({ requestId }: { requestId: string }) {
-  const [state, formAction, pending] = useActionState(
-    decidirPresupuestoAction,
-    FORM_STATE_INICIAL,
-  );
+  const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
+  const [pending, startTransition] = useTransition();
+
+  function alEnviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    // La decisión va en el botón pulsado: FormData(form) no incluye el submitter.
+    const boton = (event.nativeEvent as SubmitEvent).submitter;
+
+    if (boton instanceof HTMLButtonElement && boton.name) {
+      formData.set(boton.name, boton.value);
+    }
+
+    startTransition(async () => {
+      // En éxito la acción redirige y esta promesa no vuelve.
+      const resultado = await decidirPresupuestoAction(state, formData);
+
+      setState(resultado);
+    });
+  }
 
   return (
-    <form action={formAction} className="mt-4 space-y-3">
+    <form onSubmit={alEnviar} className="mt-4 space-y-3">
       <input type="hidden" name="requestId" value={requestId} />
 
       {state.status === "error" && state.message ? (

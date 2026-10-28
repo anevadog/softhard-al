@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 
-import { FORM_STATE_INICIAL } from "@/lib/form-state";
+import { FORM_STATE_INICIAL, type FormState } from "@/lib/form-state";
 import { borrarProductoAction } from "@/server/actions/products";
 
 export function DeleteProductForm({
@@ -12,23 +12,32 @@ export function DeleteProductForm({
   productId: string;
   productName: string;
 }) {
-  const [state, formAction, pending] = useActionState(
-    borrarProductoAction,
-    FORM_STATE_INICIAL,
-  );
+  const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
+  const [pending, startTransition] = useTransition();
 
   function alEnviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     if (
       !window.confirm(
         `¿Borrar "${productName}"? Dejará de aparecer en el catálogo, pero conservará su historial.`,
       )
     ) {
-      event.preventDefault();
+      return;
     }
+
+    const formData = new FormData(event.currentTarget);
+
+    startTransition(async () => {
+      // En éxito la acción redirige y esta promesa no vuelve.
+      const resultado = await borrarProductoAction(state, formData);
+
+      setState(resultado);
+    });
   }
 
   return (
-    <form action={formAction} onSubmit={alEnviar} className="space-y-3">
+    <form onSubmit={alEnviar} className="space-y-3">
       <input type="hidden" name="productId" value={productId} />
 
       {state.status === "error" && state.message ? (

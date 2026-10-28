@@ -1,15 +1,32 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 
 import { loginUser } from "@/server/actions/auth";
-import { AUTH_FORM_STATE_INICIAL } from "@/server/actions/auth-state";
+import { AUTH_FORM_STATE_INICIAL, type AuthFormState } from "@/server/actions/auth-state";
 
 export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
-  const [state, formAction, pending] = useActionState(loginUser, AUTH_FORM_STATE_INICIAL);
+  const [state, setState] = useState<AuthFormState>(AUTH_FORM_STATE_INICIAL);
+  const [pending, startTransition] = useTransition();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  function alEnviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    startTransition(async () => {
+      // En éxito la acción redirige y esta promesa no vuelve; ante un error se
+      // conserva lo escrito (con `action={...}` React vaciaría el formulario).
+      const resultado = await loginUser(state, formData);
+
+      setState(resultado);
+    });
+  }
 
   return (
-    <form action={formAction} className="space-y-4" noValidate>
+    <form onSubmit={alEnviar} className="space-y-4" noValidate>
       {callbackUrl ? (
         <input type="hidden" name="callbackUrl" value={callbackUrl} />
       ) : null}
@@ -30,6 +47,8 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
           type="email"
           autoComplete="email"
           required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
         />
       </div>
@@ -44,6 +63,8 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
           type="password"
           autoComplete="current-password"
           required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
         />
       </div>
