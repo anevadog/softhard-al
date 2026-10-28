@@ -6,12 +6,15 @@ import { z } from "zod";
 
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { CODIGO_DEMASIADOS_INTENTOS } from "@/lib/login-rate-limit";
 import { destinoTrasLogin, rutaInternaSegura } from "@/lib/navigation";
 import { hashPassword } from "@/lib/password";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 import type { AuthFormState } from "@/server/actions/auth-state";
 
 const MENSAJE_CREDENCIALES = "Email o contraseña incorrectos.";
+const MENSAJE_DEMASIADOS_INTENTOS =
+  "Demasiados intentos fallidos. Espera unos minutos antes de volver a probar.";
 
 function esViolacionDeUnicidad(error: unknown): boolean {
   return (
@@ -102,7 +105,14 @@ export async function loginUser(
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return { status: "error", message: MENSAJE_CREDENCIALES };
+      // El límite de intentos llega como CredentialsSignin con su propio código.
+      const limitado =
+        (error as { code?: unknown }).code === CODIGO_DEMASIADOS_INTENTOS;
+
+      return {
+        status: "error",
+        message: limitado ? MENSAJE_DEMASIADOS_INTENTOS : MENSAJE_CREDENCIALES,
+      };
     }
     throw error;
   }

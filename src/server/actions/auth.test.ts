@@ -27,6 +27,8 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+import { AuthError } from "next-auth";
+
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
@@ -148,5 +150,31 @@ describe("callback tras autenticarse", () => {
     ).rejects.toThrow("REDIRECT:/login?registrado=1");
 
     expect(redirect).toHaveBeenCalledWith("/login?registrado=1");
+  });
+});
+
+describe("mensajes de error del login", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("con credenciales incorrectas da el mensaje genérico", async () => {
+    vi.mocked(signIn).mockRejectedValue(new AuthError("CredentialsSignin"));
+
+    const resultado = await loginUser(AUTH_FORM_STATE_INICIAL, formulario(CREDENCIALES));
+
+    expect(resultado).toEqual({ status: "error", message: "Email o contraseña incorrectos." });
+  });
+
+  it("con el límite de intentos superado explica que hay que esperar", async () => {
+    vi.mocked(signIn).mockRejectedValue(
+      Object.assign(new AuthError("CredentialsSignin"), { code: "rate_limited" }),
+    );
+
+    const resultado = await loginUser(AUTH_FORM_STATE_INICIAL, formulario(CREDENCIALES));
+
+    expect(resultado.status).toBe("error");
+    expect(resultado.message).toContain("Demasiados intentos");
+    expect(redirect).not.toHaveBeenCalled();
   });
 });

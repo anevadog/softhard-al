@@ -380,6 +380,24 @@ model StockMovement {
   @@map("stock_movements")
 }
 
+/// Intento de inicio de sesión, para limitar fallos por email y por IP. No se
+/// relaciona con `User`: también se registran emails inexistentes, y así el
+/// límite no revela qué cuentas existen. Los registros de más de 24 h se borran
+/// de forma perezosa al registrar un intento nuevo.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  /// Email normalizado (recortado y en minúsculas).
+  email     String
+  ip        String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+  @@index([createdAt])
+  @@map("login_attempts")
+}
+
 /// Configuración de negocio. Fila única: id fijo = 1.
 model Config {
   id                   Int      @id @default(1)
