@@ -3,7 +3,7 @@
 Máximo 50 líneas. Actualizar al terminar cada tarea.
 
 ## Estado actual
-- **Fases 1, 2 y 3 completas** (`255f814`, con push). **Fase de deuda D1–D5 hecha**; D5 (vuelta con filtros en `/admin/fichajes` vía `rutaVueltaFichajes` en `lib/navigation.ts`) cerrada con commit `fix(fichajes)`. D1–D5 sin push.
+- **Fases 1, 2 y 3 completas** (`255f814`, con push). **Fase de deuda D1–D5 hecha**; D5 (vuelta con filtros en `/admin/fichajes` vía `rutaVueltaFichajes` en `lib/navigation.ts`) cerrada en `4135d19`. D1–D5 con push (`main` = `origin/main`).
 - **D4** en `4b3a551`: `npm run test:integration` (13 tests en `*.int.test.ts`) contra `softhard_test` (creada vacía con permiso; migrada en el global setup), rollback por test con `src/test/integration/db.ts`. **D3** en `2f19e51`: `ServiceRequest.address` (migración `20261028170425_direccion_domicilio` aplicada; `migrate diff` vacío), obligatoria en domicilio (5–200), nula en taller; visible al cliente, en el panel y al trabajador solo en sus reparaciones. **D2** en `6dd7f11`: los 8 formularios pasan a `onSubmit` + `useTransition` (sin `useActionState` en el proyecto). **D1** cerrada con commit `578f5bb`: migración `20261028165149_rate_limit_login` aplicada con `migrate deploy`; `migrate diff` vacío.
 
 ## Stack y entorno
