@@ -64,3 +64,39 @@ export function destinoTrasLogin(
 
   return destino;
 }
+
+const RUTA_FICHAJES_ADMIN = "/admin/fichajes";
+const PATRON_SEMANA = /^\d{4}-\d{2}-\d{2}$/;
+const PATRON_ID = /^[a-z0-9]{1,40}$/i;
+
+/**
+ * Vuelta a `/admin/fichajes` tras cerrar o corregir un fichaje, conservando la
+ * semana y el trabajador filtrados. Solo admite esa ruta y esos dos
+ * parámetros con formato válido; cualquier otro valor devuelve la ruta base.
+ * `aviso` se añade como `?cerrado=1` o `?corregido=1`.
+ */
+export function rutaVueltaFichajes(
+  value: unknown,
+  aviso: "cerrado" | "corregido",
+): string {
+  const segura = rutaInternaSegura(value);
+  const url = new URL(segura ?? RUTA_FICHAJES_ADMIN, BASE_INTERNA);
+  const query = new URLSearchParams();
+
+  if (url.pathname === RUTA_FICHAJES_ADMIN) {
+    const semana = url.searchParams.get("semana");
+    const trabajador = url.searchParams.get("trabajador");
+
+    if (semana && PATRON_SEMANA.test(semana)) {
+      query.set("semana", semana);
+    }
+
+    if (trabajador && PATRON_ID.test(trabajador)) {
+      query.set("trabajador", trabajador);
+    }
+  }
+
+  query.set(aviso, "1");
+
+  return `${RUTA_FICHAJES_ADMIN}?${query.toString()}`;
+}

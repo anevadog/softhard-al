@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import type { FormState } from "@/lib/form-state";
+import { rutaVueltaFichajes } from "@/lib/navigation";
 import {
   cierreStaffSchema,
   correccionFichajeSchema,
@@ -185,7 +186,8 @@ export async function cerrarFichajeStaffAction(
     redirect(`/admin/solicitudes/${resultado.requestId}?fichaje=1`);
   }
 
-  redirect("/admin/fichajes?cerrado=1");
+  // Vuelve a la semana y al trabajador que estaban filtrados (ruta validada).
+  redirect(rutaVueltaFichajes(formData.get("volverA"), "cerrado"));
 }
 
 export async function corregirFichajeStaffAction(
@@ -230,5 +232,5 @@ export async function corregirFichajeStaffAction(
     redirect(`/admin/solicitudes/${resultado.requestId}?fichaje=1`);
   }
 
-  redirect("/admin/fichajes?corregido=1");
+  redirect(rutaVueltaFichajes(formData.get("volverA"), "corregido"));
 }

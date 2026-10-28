@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { destinoTrasLogin, rutaInternaSegura } from "@/lib/navigation";
+import { destinoTrasLogin, rutaInternaSegura, rutaVueltaFichajes } from "@/lib/navigation";
 
 describe("callback de navegación", () => {
   it("acepta rutas internas con búsqueda y hash", () => {
@@ -45,5 +45,32 @@ describe("callback de navegación", () => {
     expect(destinoTrasLogin(null, "encargado")).toBe("/admin");
     expect(destinoTrasLogin(null, "cliente")).toBe("/app");
     expect(destinoTrasLogin(null, null)).toBe("/app");
+  });
+});
+
+describe("rutaVueltaFichajes", () => {
+  it("conserva semana y trabajador y añade el aviso", () => {
+    expect(
+      rutaVueltaFichajes("/admin/fichajes?semana=2026-10-19&trabajador=cmabc123", "cerrado"),
+    ).toBe("/admin/fichajes?semana=2026-10-19&trabajador=cmabc123&cerrado=1");
+  });
+
+  it("descarta parámetros desconocidos o mal formados", () => {
+    expect(
+      rutaVueltaFichajes("/admin/fichajes?semana=ayer&trabajador=<x>&otro=1", "corregido"),
+    ).toBe("/admin/fichajes?corregido=1");
+  });
+
+  it("nunca sale de /admin/fichajes", () => {
+    for (const valor of [
+      "https://evil.example/admin/fichajes",
+      "//evil.example",
+      "/admin/solicitudes?semana=2026-10-19",
+      "/login",
+      undefined,
+      42,
+    ]) {
+      expect(rutaVueltaFichajes(valor, "cerrado")).toBe("/admin/fichajes?cerrado=1");
+    }
   });
 });

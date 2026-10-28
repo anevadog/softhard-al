@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 completada` · `Fase 3 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `487 tests + 13 de integración`
+`Fase 1 completada` · `Fase 2 completada` · `Fase 3 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `492 tests + 13 de integración`
 
 ## Capturas
 
@@ -399,7 +399,7 @@ pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **487 tests unitarios** en 56 archivos (`npm run test`, sin base de datos), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, reportes, límite de intentos de login y dirección de recogida. La capa de datos se prueba con Prisma mockeado.
+- **492 tests unitarios** en 56 archivos (`npm run test`, sin base de datos), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, reportes, límite de intentos de login y dirección de recogida. La capa de datos se prueba con Prisma mockeado.
 - **13 tests de integración** (`npm run test:integration`) contra PostgreSQL real: índice único parcial de fichajes (`P2002`), check de salida, filtros por relación en `updateMany`, recuentos filtrados, cambio de hora en los reportes, límite de login y privacidad del cliente. Usan una base aparte, `<base>_test`, derivada de `DATABASE_URL` (solo hosts locales); cada test va en una transacción que se revierte, y antes se aplican las migraciones con `prisma migrate deploy`. La base se crea una vez:
 
   ```bash
@@ -453,6 +453,15 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] 3.5 Notas y falta de repuesto con atención del encargado.
 - [x] 3.6 Avisos de reparaciones sin actividad y devueltas sin responsable.
 - [x] 3.7 Vistas y reportes del encargado.
+
+### Deuda técnica — completada
+
+- [x] D1 Límite de intentos fallidos de inicio de sesión (5 por email y 20 por IP en 15 minutos).
+- [x] D2 Todos los formularios con `onSubmit` + `useTransition`: no se pierde lo escrito ante un error.
+- [x] D3 Dirección de recogida en las visitas a domicilio.
+- [x] D4 Tests de integración contra PostgreSQL real.
+- [x] D5 El panel de fichajes conserva semana y trabajador tras cerrar o corregir.
+- [ ] Capturas del README con el taller (manual).
 
 ## Fuera de alcance
 

@@ -249,4 +249,39 @@ describe("cierre y corrección del staff", () => {
     expect(cerrarFichajeStaff).not.toHaveBeenCalled();
     expect(corregirFichajeStaff).not.toHaveBeenCalled();
   });
+
+  it("tras cerrar o corregir vuelve a la semana y al trabajador filtrados", async () => {
+    await expect(
+      cerrarFichajeStaffAction(
+        FORM_STATE_INICIAL,
+        formulario({
+          workLogId: "wl-1",
+          origen: "abiertos",
+          volverA: "/admin/fichajes?semana=2026-10-19&trabajador=worker1",
+        }),
+      ),
+    ).rejects.toThrow("REDIRECT:/admin/fichajes?semana=2026-10-19&trabajador=worker1&cerrado=1");
+
+    await expect(
+      corregirFichajeStaffAction(
+        FORM_STATE_INICIAL,
+        formulario({
+          workLogId: "wl-1",
+          origen: "abiertos",
+          inicio: "2026-10-20T08:00",
+          fin: "2026-10-20T09:00",
+          volverA: "/admin/fichajes?semana=2026-10-19",
+        }),
+      ),
+    ).rejects.toThrow("REDIRECT:/admin/fichajes?semana=2026-10-19&corregido=1");
+  });
+
+  it("ignora una ruta de vuelta externa o de otra página", async () => {
+    await expect(
+      cerrarFichajeStaffAction(
+        FORM_STATE_INICIAL,
+        formulario({ workLogId: "wl-1", origen: "abiertos", volverA: "https://evil.example" }),
+      ),
+    ).rejects.toThrow("REDIRECT:/admin/fichajes?cerrado=1");
+  });
 });

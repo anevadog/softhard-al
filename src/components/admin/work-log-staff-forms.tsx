@@ -13,7 +13,16 @@ type Origen = "abiertos" | "solicitud";
 const inputClass =
   "mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200";
 
-export function CerrarFichajeForm({ workLogId, origen }: { workLogId: string; origen: Origen }) {
+export function CerrarFichajeForm({
+  workLogId,
+  origen,
+  volverA,
+}: {
+  workLogId: string;
+  origen: Origen;
+  /** Ruta de `/admin/fichajes` con sus filtros; el servidor la valida. */
+  volverA?: string;
+}) {
   const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
   const [pending, startTransition] = useTransition();
 
@@ -34,6 +43,7 @@ export function CerrarFichajeForm({ workLogId, origen }: { workLogId: string; or
     <form onSubmit={alEnviar} className="space-y-2">
       <input type="hidden" name="workLogId" value={workLogId} />
       <input type="hidden" name="origen" value={origen} />
+      {volverA ? <input type="hidden" name="volverA" value={volverA} /> : null}
       {state.status === "error" && state.message ? (
         <p className="text-xs text-red-600" role="alert">
           {state.message}
@@ -61,9 +71,11 @@ export function CorreccionFichajeForm({
   finInicial,
   notaInicial,
   notaObligatoria,
+  volverA,
 }: {
   workLogId: string;
   origen: Origen;
+  volverA?: string;
   inicioInicial: string;
   finInicial: string | null;
   notaInicial: string;
@@ -103,6 +115,7 @@ export function CorreccionFichajeForm({
       >
         <input type="hidden" name="workLogId" value={workLogId} />
         <input type="hidden" name="origen" value={origen} />
+        {volverA ? <input type="hidden" name="volverA" value={volverA} /> : null}
 
         {state.status === "error" && state.message ? (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">

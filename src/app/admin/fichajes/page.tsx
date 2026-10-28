@@ -53,6 +53,13 @@ export default async function FichajesAbiertosPage({
     obtenerHorasFichajeAbierto(),
     listarFichajesSemana(semana, filtro?.id ?? null),
   ]);
+  // Tras cerrar o corregir se vuelve aquí con los mismos filtros.
+  const parametrosVuelta = new URLSearchParams();
+  if (claveSemana) parametrosVuelta.set("semana", semana.clave);
+  if (filtro) parametrosVuelta.set("trabajador", filtro.id);
+  const volverA = parametrosVuelta.size
+    ? `/admin/fichajes?${parametrosVuelta.toString()}`
+    : "/admin/fichajes";
   const porTrabajador = minutosPorTrabajador(
     fichajesSemana,
     filtro ? [filtro] : trabajadores,
@@ -127,7 +134,7 @@ export default async function FichajesAbiertosPage({
                   </p>
                 ) : null}
                 <div className="mt-3">
-                  <StaffWorkLogActions fichaje={fichaje} origen="abiertos" />
+                  <StaffWorkLogActions fichaje={fichaje} origen="abiertos" volverA={volverA} />
                 </div>
               </li>
             );
@@ -201,7 +208,7 @@ export default async function FichajesAbiertosPage({
             mostrarTrabajador
             mostrarReparacion
             vacio="No hay fichajes en esta semana."
-            acciones={(fichaje) => <StaffWorkLogActions fichaje={fichaje} origen="abiertos" />}
+            acciones={(fichaje) => <StaffWorkLogActions fichaje={fichaje} origen="abiertos" volverA={volverA} />}
           />
         </div>
       </section>
