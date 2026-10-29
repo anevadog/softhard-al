@@ -406,6 +406,7 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
   docker compose exec db createdb -U postgres softhard_test
   ```
 - TypeScript estricto y ESLint en cada cambio.
+- **Integración continua** (`.github/workflows/ci.yml`, GitHub Actions): en cada push a `main` y en cada pull request ejecuta lint → tipos → tests unitarios → tests de integración → `prisma migrate deploy` → `npm run build`, contra un PostgreSQL 16 de usar y tirar en el propio runner (credenciales ficticias en el workflow, sin secretos ni despliegue). Una ejecución nueva cancela la anterior de la misma rama. Para que una PR no se pueda fusionar en rojo, protege `main` en GitHub (*Settings → Branches → Add rule*: *Require status checks to pass* con el check **Lint, tests y build**); es un ajuste del repositorio, no del código.
 - **Deuda conocida:** los pedidos pendientes retienen stock hasta que se cancelan y no se libera automáticamente; checkout y pedidos aún no tienen tests de integración.
 
 ### Server Components y Server Actions

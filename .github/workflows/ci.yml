@@ -1,0 +1,86 @@
+# CI (Fase 5.1): lint, tipos, tests unitarios y de integración, migraciones y
+# build contra un PostgreSQL de usar y tirar. Sin despliegue, sin artefactos y
+# sin secretos: las credenciales de aquí solo existen dentro del runner.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Lint, tests y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        # Misma imagen que docker-compose.yml.
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: softhard
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Valores ficticios: la base vive en localhost del runner y se destruye
+      # al acabar el job. Los tests de integración derivan `softhard_test`.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/softhard?schema=public
+      AUTH_SECRET: ci-secreto-ficticio-solo-para-github-actions-0000
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Generar el cliente de Prisma
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Tests unitarios
+        run: npm run test
+
+      # El global setup de los tests de integración no crea bases (en local es
+      # una decisión manual): aquí se crea la de test antes de lanzarlos.
+      - name: Crear la base de test
+        env:
+          PGPASSWORD: postgres
+        run: createdb -h localhost -U postgres softhard_test
+
+      - name: Tests de integración
+        run: npm run test:integration
+
+      - name: Migraciones en la base principal
+        run: npx prisma migrate deploy
+
+      # `build` vuelve a ejecutar `prisma generate` y `migrate deploy`: la
+      # segunda vez no hay nada pendiente.
+      - name: Build
+        run: npm run build
