@@ -10,6 +10,10 @@ vi.mock("@/server/data/admin-orders", () => ({
   cambiarEstadoPedidoAdmin: vi.fn(),
 }));
 
+vi.mock("@/server/data/orders", () => ({
+  liberarPedidosCaducadosSinFallar: vi.fn(),
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -23,6 +27,7 @@ vi.mock("next/navigation", () => ({
 import { cambiarEstadoPedidoAction } from "@/server/actions/admin-orders";
 import { requerirStaff } from "@/server/authorization";
 import { cambiarEstadoPedidoAdmin } from "@/server/data/admin-orders";
+import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -144,6 +149,25 @@ describe("cambiarEstadoPedidoAction", () => {
 
     expect(resultado.status).toBe("error");
     expect(resultado.message).toContain("ha cambiado");
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("libera los caducados antes de cambiar el estado y explica un pedido caducado", async () => {
+    vi.mocked(cambiarEstadoPedidoAdmin).mockResolvedValue({
+      ok: false,
+      motivo: "caducado",
+    });
+
+    const resultado = await cambiarEstadoPedidoAction(
+      FORM_STATE_INICIAL,
+      formulario(),
+    );
+
+    expect(
+      vi.mocked(liberarPedidosCaducadosSinFallar).mock.invocationCallOrder[0],
+    ).toBeLessThan(vi.mocked(cambiarEstadoPedidoAdmin).mock.invocationCallOrder[0]);
+    expect(resultado.status).toBe("error");
+    expect(resultado.message).toContain("ha caducado");
     expect(redirect).not.toHaveBeenCalled();
   });
 

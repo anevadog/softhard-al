@@ -1,12 +1,91 @@
 import { prisma } from "@/lib/db";
 import {
+  PENDING_ORDER_HOURS_DEFECTO,
+  calcularExpiracionPedido,
   precioDesdeCentimos,
   prepararPedido,
   type MotivoPedidoInvalido,
   type PedidoDetalle,
   type PedidoResumen,
 } from "@/lib/orders";
-import { crearMovimientosVenta } from "@/server/data/stock-movements";
+import {
+  crearMovimientosCaducidad,
+  crearMovimientosVenta,
+} from "@/server/data/stock-movements";
+
+/** Pedidos caducados que se liberan como mucho en cada llamada. */
+const LOTE_CADUCADOS = 50;
+
+/**
+ * Evaluación perezosa de la caducidad (sin cron). Cada pedido vencido se
+ * procesa en su propia transacción: el `updateMany` condicional a `caducado`
+ * decide la carrera con otra liberación o con una cancelación, y solo si
+ * modificó la fila se lee el pedido y se repone el stock. Así el stock nunca se
+ * repone dos veces.
+ *
+ * Devuelve cuántos pedidos ha caducado esta llamada.
+ */
+export async function liberarPedidosCaducados(
+  ahora: Date = new Date(),
+): Promise<number> {
+  const vencidos = await prisma.order.findMany({
+    where: { status: "pendiente", expiresAt: { lte: ahora } },
+    orderBy: { expiresAt: "asc" },
+    take: LOTE_CADUCADOS,
+    select: { id: true },
+  });
+
+  let caducados = 0;
+
+  for (const { id } of vencidos) {
+    const caducado = await prisma.$transaction(async (tx) => {
+      const actualizado = await tx.order.updateMany({
+        where: { id, status: "pendiente", expiresAt: { lte: ahora } },
+        data: { status: "caducado" },
+      });
+
+      if (actualizado.count === 0) {
+        return false;
+      }
+
+      const lineas = await tx.orderItem.findMany({
+        where: { orderId: id },
+        orderBy: { productId: "asc" },
+        select: { productId: true, quantity: true },
+      });
+
+      for (const linea of lineas) {
+        // Sin filtro `active`: un producto archivado también recupera su stock.
+        await tx.product.update({
+          where: { id: linea.productId },
+          data: { stock: { increment: linea.quantity } },
+        });
+      }
+
+      await crearMovimientosCaducidad(tx, id, lineas);
+
+      return true;
+    });
+
+    if (caducado) {
+      caducados += 1;
+    }
+  }
+
+  return caducados;
+}
+
+/**
+ * Para las lecturas (catálogo, carrito, listados): un fallo al liberar no debe
+ * impedir servir la página. El checkout usa la versión que propaga el error.
+ */
+export async function liberarPedidosCaducadosSinFallar(): Promise<void> {
+  try {
+    await liberarPedidosCaducados();
+  } catch (error) {
+    console.error("Error liberando pedidos caducados:", error);
+  }
+}
 
 export type ResultadoCrearPedido =
   | { ok: true; pedidoId: string }
@@ -60,8 +139,22 @@ export async function crearPedidoCliente(
     return { ok: true, pedidoId: yaCreado.id };
   }
 
+  // Antes de comprobar el stock: lo que retenían los pedidos vencidos vuelve a
+  // estar disponible para esta compra. Si falla, el checkout se aborta.
+  await liberarPedidosCaducados();
+
   try {
     return await prisma.$transaction(async (tx) => {
+      const config = await tx.config.findUnique({
+        where: { id: 1 },
+        select: { pendingOrderHours: true },
+      });
+      const creadoEn = new Date();
+      const expiresAt = calcularExpiracionPedido(
+        creadoEn,
+        config?.pendingOrderHours ?? PENDING_ORDER_HOURS_DEFECTO,
+      );
+
       const productos = await tx.product.findMany({
         where: { id: { in: items.map((item) => item.productId) } },
         select: { id: true, price: true, stock: true, active: true },
@@ -106,6 +199,8 @@ export async function crearPedidoCliente(
           total: precioDesdeCentimos(preparado.totalCentimos),
           status: "pendiente",
           idempotencyKey,
+          createdAt: creadoEn,
+          expiresAt,
           items: {
             create: preparado.lineas.map((linea) => ({
               productId: linea.productId,
@@ -166,6 +261,7 @@ export async function listarPedidosCliente(
       total: true,
       status: true,
       createdAt: true,
+      expiresAt: true,
       items: { select: { quantity: true } },
     },
   });
@@ -175,6 +271,7 @@ export async function listarPedidosCliente(
     total: Number(pedido.total),
     status: pedido.status,
     createdAt: pedido.createdAt,
+    expiresAt: pedido.expiresAt,
     unidades: pedido.items.reduce((total, item) => total + item.quantity, 0),
     lineas: pedido.items.length,
   }));
@@ -195,6 +292,7 @@ export async function obtenerPedidoCliente(
       total: true,
       status: true,
       createdAt: true,
+      expiresAt: true,
       items: {
         orderBy: { id: "asc" },
         select: {
@@ -217,6 +315,7 @@ export async function obtenerPedidoCliente(
     total: Number(pedido.total),
     status: pedido.status,
     createdAt: pedido.createdAt,
+    expiresAt: pedido.expiresAt,
     items: pedido.items.map((item) => {
       const priceCentimos = Math.round(Number(item.price) * 100);
 

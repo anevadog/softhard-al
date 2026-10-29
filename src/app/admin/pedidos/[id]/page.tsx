@@ -3,8 +3,13 @@ import { notFound } from "next/navigation";
 
 import { OrderStatusForm } from "@/components/admin/order-status-form";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
-import { formatearFechaCorta, formatEuros } from "@/lib/format";
+import {
+  formatearFechaCorta,
+  formatearFechaHora,
+  formatEuros,
+} from "@/lib/format";
 import { obtenerPedidoAdmin } from "@/server/data/admin-orders";
+import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 
 export const metadata = {
   title: "Detalle del pedido",
@@ -19,6 +24,7 @@ export default async function AdminPedidoPage({
 }) {
   const { id } = await params;
   const { estado } = await searchParams;
+  await liberarPedidosCaducadosSinFallar();
   const pedido = await obtenerPedidoAdmin(id);
 
   if (!pedido) {
@@ -42,8 +48,21 @@ export default async function AdminPedidoPage({
         </div>
         <p className="mt-1 text-sm text-slate-600">
           Creado el {formatearFechaCorta(pedido.createdAt)}
+          {pedido.status === "pendiente" && pedido.expiresAt
+            ? ` · Caduca el ${formatearFechaHora(pedido.expiresAt)}`
+            : null}
+          {pedido.paidAt
+            ? ` · Cobrado el ${formatearFechaHora(pedido.paidAt)}`
+            : null}
         </p>
       </div>
+
+      {pedido.status === "caducado" ? (
+        <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+          Caducado por impago: el sistema lo marcó al vencer y repuso el stock de
+          sus productos.
+        </p>
+      ) : null}
 
       {estado === "1" ? (
         <p
@@ -146,6 +165,7 @@ export default async function AdminPedidoPage({
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Pendiente → pagado o cancelado. Pagado → entregado o cancelado.
+              Un pendiente sin pagar caduca solo al vencer.
             </p>
             <div className="mt-4">
               <OrderStatusForm orderId={pedido.id} status={pedido.status} />

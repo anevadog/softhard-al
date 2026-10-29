@@ -6,6 +6,7 @@ export const ORDER_STATUSES = [
   "pagado",
   "entregado",
   "cancelado",
+  "caducado",
 ] as const satisfies readonly OrderStatus[];
 
 /** Clases Tailwind completas: deben ser literales para que el escáner las detecte. */
@@ -29,6 +30,10 @@ export const ORDER_STATUS_META: Record<
     label: "Cancelado",
     badgeClass: "bg-rose-50 text-rose-700 ring-rose-200",
   },
+  caducado: {
+    label: "Caducado",
+    badgeClass: "bg-zinc-100 text-zinc-600 ring-zinc-300",
+  },
 };
 
 export function etiquetaEstadoPedido(status: OrderStatus): string {
@@ -36,14 +41,17 @@ export function etiquetaEstadoPedido(status: OrderStatus): string {
 }
 
 /**
- * Regla única de transición del pedido. `pagado` se marca a mano porque no hay
- * pasarela; entregado y cancelado son estados finales.
+ * Regla única de transición del pedido hecha por personas. `pagado` se marca a
+ * mano porque no hay pasarela; entregado, cancelado y caducado son finales.
+ * `caducado` no aparece como destino: solo lo pone el sistema al vencer el
+ * pedido (`liberarPedidosCaducados`).
  */
 const TRANSICIONES_PEDIDO: Record<OrderStatus, readonly OrderStatus[]> = {
   pendiente: ["pagado", "cancelado"],
   pagado: ["entregado", "cancelado"],
   entregado: [],
   cancelado: [],
+  caducado: [],
 };
 
 export function puedeCambiarEstadoPedido(
@@ -51,6 +59,24 @@ export function puedeCambiarEstadoPedido(
   nuevo: OrderStatus,
 ): boolean {
   return TRANSICIONES_PEDIDO[actual].includes(nuevo);
+}
+
+const MS_POR_HORA = 60 * 60 * 1000;
+
+/** Horas por defecto si no hay fila de `Config` (coincide con el default del esquema). */
+export const PENDING_ORDER_HOURS_DEFECTO = 48;
+
+/** Fecha de caducidad de un pedido pendiente: creación + N horas de `Config`. */
+export function calcularExpiracionPedido(creadoEn: Date, horas: number): Date {
+  return new Date(creadoEn.getTime() + horas * MS_POR_HORA);
+}
+
+/**
+ * Un pedido caduca exactamente en `expiresAt` (límite inclusivo). Sin fecha no
+ * caduca nunca.
+ */
+export function pedidoCaducado(expiresAt: Date | null, ahora: Date): boolean {
+  return expiresAt !== null && expiresAt.getTime() <= ahora.getTime();
 }
 
 /** Límite de `Decimal(10,2)` expresado en céntimos. */
@@ -220,6 +246,7 @@ export type PedidoResumen = {
   total: number;
   status: OrderStatus;
   createdAt: Date;
+  expiresAt: Date | null;
   unidades: number;
   lineas: number;
 };
@@ -239,6 +266,7 @@ export type PedidoDetalle = {
   total: number;
   status: OrderStatus;
   createdAt: Date;
+  expiresAt: Date | null;
   items: PedidoLinea[];
 };
 
@@ -270,6 +298,8 @@ export type PedidoAdminDetalle = {
   total: number;
   status: OrderStatus;
   createdAt: Date;
+  expiresAt: Date | null;
+  paidAt: Date | null;
   client: ClientePedidoAdmin;
   items: PedidoAdminLinea[];
 };

@@ -9,6 +9,7 @@ import { puedeCambiarEstadoPedido } from "@/lib/orders";
 import { cambiarEstadoPedidoSchema } from "@/lib/validations/order";
 import { requerirStaff } from "@/server/authorization";
 import { cambiarEstadoPedidoAdmin } from "@/server/data/admin-orders";
+import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 
 export async function cambiarEstadoPedidoAction(
   _prevState: FormState,
@@ -45,6 +46,10 @@ export async function cambiarEstadoPedidoAction(
     };
   }
 
+  // Un pedido vencido se marca `caducado` (y libera stock) antes de que el
+  // staff pueda cobrarlo o cancelarlo.
+  await liberarPedidosCaducadosSinFallar();
+
   let resultado;
 
   try {
@@ -70,7 +75,9 @@ export async function cambiarEstadoPedidoAction(
       message:
         resultado.motivo === "transicion-invalida"
           ? "Ese cambio de estado no está permitido."
-          : "El pedido ha cambiado mientras lo editabas. Recarga la página y revisa el estado actual.",
+          : resultado.motivo === "caducado"
+            ? "El pedido ha caducado: su stock se ha liberado y ya no se puede cobrar."
+            : "El pedido ha cambiado mientras lo editabas. Recarga la página y revisa el estado actual.",
     };
   }
 

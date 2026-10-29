@@ -130,3 +130,45 @@ export async function crearSolicitud(
     },
   });
 }
+
+export async function crearProducto(
+  tx: Tx,
+  datos: { stock: number; price?: string; active?: boolean; name?: string },
+) {
+  secuencia += 1;
+
+  const producto = await tx.product.create({
+    data: {
+      name: datos.name ?? `Producto int ${secuencia}`,
+      description: "Producto de prueba de integración",
+      price: datos.price ?? "10.00",
+      stock: datos.stock,
+      category: "accesorios",
+      active: datos.active ?? true,
+    },
+  });
+
+  if (datos.stock > 0) {
+    await tx.stockMovement.create({
+      data: { productId: producto.id, variation: datos.stock, reason: "stock_inicial" },
+    });
+  }
+
+  return producto;
+}
+
+/**
+ * Invariante del libro: `Product.stock` es la suma de las variaciones de sus
+ * movimientos. Devuelve ambos valores para compararlos en el test.
+ */
+export async function libroStock(
+  tx: Tx,
+  productId: string,
+): Promise<{ stock: number; suma: number }> {
+  const [producto, agregado] = await Promise.all([
+    tx.product.findUniqueOrThrow({ where: { id: productId }, select: { stock: true } }),
+    tx.stockMovement.aggregate({ where: { productId }, _sum: { variation: true } }),
+  ]);
+
+  return { stock: producto.stock, suma: agregado._sum.variation ?? 0 };
+}

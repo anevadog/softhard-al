@@ -9,6 +9,7 @@ import {
   PRODUCT_CATEGORY_LABELS,
   type ProductCategory,
 } from "@/lib/products";
+import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 import { listarProductosPublicos } from "@/server/data/products";
 
 export const metadata: Metadata = {
@@ -26,6 +27,8 @@ export default async function ProductosPage({
 }: ProductosPageProps) {
   const { categoria: categoriaParam } = await searchParams;
   const categoria = parseCategoriaProducto(categoriaParam);
+  // El stock retenido por pedidos vencidos vuelve al catálogo antes de leerlo.
+  await liberarPedidosCaducadosSinFallar();
   const productos = await listarProductosPublicos(categoria ?? undefined);
 
   const resumen =

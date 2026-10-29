@@ -20,6 +20,7 @@ export const STOCK_MOVEMENT_REASON_LABELS: Record<StockMovementReason, string> =
   cancelacion_pedido: "Cancelación de pedido",
   reposicion: "Reposición",
   ajuste: "Ajuste",
+  caducidad_pedido: "Caducidad de pedido",
 };
 
 export function etiquetaMotivoStock(reason: StockMovementReason): string {

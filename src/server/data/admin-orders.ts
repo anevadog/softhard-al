@@ -2,6 +2,7 @@ import type { OrderStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import {
   ORDER_STATUSES,
+  pedidoCaducado,
   puedeCambiarEstadoPedido,
   type PedidoAdminDetalle,
   type PedidoAdminResumen,
@@ -60,6 +61,8 @@ export async function obtenerPedidoAdmin(
       total: true,
       status: true,
       createdAt: true,
+      expiresAt: true,
+      paidAt: true,
       user: { select: { name: true, email: true, phone: true } },
       items: {
         orderBy: { id: "asc" },
@@ -83,6 +86,8 @@ export async function obtenerPedidoAdmin(
     total: Number(pedido.total),
     status: pedido.status,
     createdAt: pedido.createdAt,
+    expiresAt: pedido.expiresAt,
+    paidAt: pedido.paidAt,
     client: pedido.user,
     items: pedido.items.map((item) => {
       const price = Math.round(Number(item.price) * 100) / 100;
@@ -109,12 +114,16 @@ export type DatosCambioEstadoPedido = {
 
 export type ResultadoCambioEstadoPedido =
   | { ok: true; productIds: string[] }
-  | { ok: false; motivo: "transicion-invalida" | "conflicto" };
+  | { ok: false; motivo: "transicion-invalida" | "conflicto" | "caducado" };
 
 /**
  * Cambia el estado solo si sigue en el estado que vio la persona. La
  * actualización condicional es la que decide la carrera; el perdedor no toca
  * nada.
+ *
+ * El cobro (`pendiente → pagado`) exige además que el pedido no haya vencido,
+ * aunque la liberación perezosa aún no lo haya marcado `caducado`, y guarda
+ * `paidAt` en la misma escritura.
  *
  * En una cancelación, las líneas se leen DENTRO de la transacción y DESPUÉS de
  * que la actualización haya modificado una fila. Así una segunda cancelación no
@@ -128,14 +137,43 @@ export async function cambiarEstadoPedidoAdmin(
   }
 
   if (datos.estadoNuevo !== "cancelado") {
+    const ahora = new Date();
+    const esCobro = datos.estadoNuevo === "pagado";
     const actualizado = await prisma.order.updateMany({
-      where: { id: datos.orderId, status: datos.estadoEsperado },
-      data: { status: datos.estadoNuevo },
+      where: {
+        id: datos.orderId,
+        status: datos.estadoEsperado,
+        ...(esCobro
+          ? { OR: [{ expiresAt: null }, { expiresAt: { gt: ahora } }] }
+          : {}),
+      },
+      data: {
+        status: datos.estadoNuevo,
+        ...(esCobro ? { paidAt: ahora } : {}),
+      },
     });
 
-    return actualizado.count > 0
-      ? { ok: true, productIds: [] }
-      : { ok: false, motivo: "conflicto" };
+    if (actualizado.count > 0) {
+      return { ok: true, productIds: [] };
+    }
+
+    if (esCobro) {
+      const pedido = await prisma.order.findUnique({
+        where: { id: datos.orderId },
+        select: { status: true, expiresAt: true },
+      });
+
+      if (
+        pedido &&
+        (pedido.status === "caducado" ||
+          (pedido.status === "pendiente" &&
+            pedidoCaducado(pedido.expiresAt, ahora)))
+      ) {
+        return { ok: false, motivo: "caducado" };
+      }
+    }
+
+    return { ok: false, motivo: "conflicto" };
   }
 
   return prisma.$transaction(async (tx) => {

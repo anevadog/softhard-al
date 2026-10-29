@@ -3,8 +3,15 @@ import { notFound, redirect } from "next/navigation";
 
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { auth } from "@/lib/auth";
-import { formatearFechaCorta, formatEuros } from "@/lib/format";
-import { obtenerPedidoCliente } from "@/server/data/orders";
+import {
+  formatearFechaCorta,
+  formatearFechaHora,
+  formatEuros,
+} from "@/lib/format";
+import {
+  liberarPedidosCaducadosSinFallar,
+  obtenerPedidoCliente,
+} from "@/server/data/orders";
 
 export const metadata = {
   title: "Detalle del pedido",
@@ -25,6 +32,7 @@ export default async function PedidoPage({
   }
 
   const { creado } = await searchParams;
+  await liberarPedidosCaducadosSinFallar();
   const pedido = await obtenerPedidoCliente(id, session.user.id);
 
   if (!pedido) {
@@ -98,6 +106,21 @@ export default async function PedidoPage({
         <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700">
           Hemos registrado tu pedido. Nos pondremos en contacto para coordinar la
           entrega.
+          {pedido.expiresAt ? (
+            <>
+              {" "}
+              Si no se paga antes del{" "}
+              <strong>{formatearFechaHora(pedido.expiresAt)}</strong>, caducará y
+              los productos volverán a estar disponibles.
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
+      {pedido.status === "caducado" ? (
+        <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+          Este pedido caducó porque no se pagó a tiempo. Hemos liberado el stock
+          de sus productos; si todavía los quieres, haz un pedido nuevo.
         </p>
       ) : null}
 

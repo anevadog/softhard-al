@@ -6,6 +6,7 @@ import {
   contarPedidosPorEstado,
   listarPedidosAdmin,
 } from "@/server/data/admin-orders";
+import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 
 export const metadata = {
   title: "Pedidos",
@@ -19,6 +20,7 @@ export default async function AdminPedidosPage({
   const { estado } = await searchParams;
   const filtro = ORDER_STATUSES.find((valor) => valor === estado);
 
+  await liberarPedidosCaducadosSinFallar();
   const [pedidos, conteos] = await Promise.all([
     listarPedidosAdmin(filtro),
     contarPedidosPorEstado(),

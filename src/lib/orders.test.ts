@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAX_ORDER_TOTAL_CENTS,
+  ORDER_STATUSES,
+  calcularExpiracionPedido,
   etiquetaEstadoPedido,
+  pedidoCaducado,
   puedeCambiarEstadoPedido,
   precioDesdeCentimos,
   prepararPedido,
@@ -123,6 +126,29 @@ describe("preparación de pedidos", () => {
     expect(etiquetaEstadoPedido("pagado")).toBe("Pagado");
     expect(etiquetaEstadoPedido("entregado")).toBe("Entregado");
     expect(etiquetaEstadoPedido("cancelado")).toBe("Cancelado");
+    expect(etiquetaEstadoPedido("caducado")).toBe("Caducado");
+  });
+});
+
+describe("caducidad de pedidos", () => {
+  it("calcula la caducidad sumando las horas a la creación", () => {
+    const creado = new Date("2026-10-24T10:00:00Z");
+
+    expect(calcularExpiracionPedido(creado, 48)).toEqual(
+      new Date("2026-10-26T10:00:00Z"),
+    );
+  });
+
+  it("caduca exactamente en expiresAt y no antes", () => {
+    const vence = new Date("2026-10-26T10:00:00Z");
+
+    expect(pedidoCaducado(vence, new Date("2026-10-26T09:59:59.999Z"))).toBe(false);
+    expect(pedidoCaducado(vence, vence)).toBe(true);
+    expect(pedidoCaducado(vence, new Date("2026-10-27T00:00:00Z"))).toBe(true);
+  });
+
+  it("sin fecha de caducidad no caduca nunca", () => {
+    expect(pedidoCaducado(null, new Date("2099-01-01T00:00:00Z"))).toBe(false);
   });
 });
 
@@ -144,8 +170,8 @@ describe("transiciones de pedido", () => {
     expect(puedeCambiarEstadoPedido("cancelado", "pendiente")).toBe(false);
   });
 
-  it("trata entregado y cancelado como finales", () => {
-    for (const estado of ["entregado", "cancelado"] as const) {
+  it("trata entregado, cancelado y caducado como finales", () => {
+    for (const estado of ["entregado", "cancelado", "caducado"] as const) {
       expect(puedeCambiarEstadoPedido(estado, "pendiente")).toBe(false);
       expect(puedeCambiarEstadoPedido(estado, "pagado")).toBe(false);
       expect(puedeCambiarEstadoPedido(estado, "entregado")).toBe(false);
@@ -153,13 +179,14 @@ describe("transiciones de pedido", () => {
     }
   });
 
+  it("nadie puede pasar un pedido a caducado a mano", () => {
+    for (const estado of ORDER_STATUSES) {
+      expect(puedeCambiarEstadoPedido(estado, "caducado")).toBe(false);
+    }
+  });
+
   it("rechaza cambiar al mismo estado", () => {
-    for (const estado of [
-      "pendiente",
-      "pagado",
-      "entregado",
-      "cancelado",
-    ] as const) {
+    for (const estado of ORDER_STATUSES) {
       expect(puedeCambiarEstadoPedido(estado, estado)).toBe(false);
     }
   });

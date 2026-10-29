@@ -17,11 +17,15 @@ import {
   type ProductoPublico,
 } from "@/lib/products";
 import { productIdSchema } from "@/lib/validations/product";
+import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 import { obtenerProductoPublico } from "@/server/data/products";
 
 const PLACEHOLDER = "/productos/placeholder.svg";
 
 const cargarProducto = cache(obtenerProductoPublico);
+// Una sola liberación por petición, antes de la primera lectura del producto
+// (la hagan los metadatos o la página).
+const liberarCaducadosUnaVez = cache(liberarPedidosCaducadosSinFallar);
 
 type ProductoDetallePageProps = {
   params: Promise<{ id: string }>;
@@ -36,6 +40,8 @@ async function obtenerProductoDeFicha(
   if (!parsedId.success) {
     return null;
   }
+
+  await liberarCaducadosUnaVez();
 
   return cargarProducto(parsedId.data);
 }

@@ -32,6 +32,29 @@ export async function crearMovimientoStockInicial(
   });
 }
 
+/**
+ * Un movimiento de caducidad por línea, con variación positiva, ligado al
+ * pedido y sin usuario (lo hace el sistema).
+ */
+export async function crearMovimientosCaducidad(
+  tx: Tx,
+  orderId: string,
+  lineas: readonly { productId: string; quantity: number }[],
+): Promise<void> {
+  if (lineas.length === 0) {
+    return;
+  }
+
+  await tx.stockMovement.createMany({
+    data: lineas.map((linea) => ({
+      productId: linea.productId,
+      variation: linea.quantity,
+      reason: "caducidad_pedido" as const,
+      orderId,
+    })),
+  });
+}
+
 /** Un movimiento de venta por línea, con variación negativa y ligado al pedido. */
 export async function crearMovimientosVenta(
   tx: Tx,

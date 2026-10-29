@@ -2,6 +2,7 @@
 
 import type { ProductoPublico } from "@/lib/products";
 import { cartIdsSchema } from "@/lib/validations/cart";
+import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 import { listarProductosPorIds } from "@/server/data/products";
 
 /**
@@ -16,6 +17,9 @@ export async function obtenerProductosCarritoAction(
   if (!parsed.success) {
     return [];
   }
+
+  // El carrito muestra el stock real: lo retenido por pedidos vencidos se libera antes.
+  await liberarPedidosCaducadosSinFallar();
 
   return listarProductosPorIds(parsed.data);
 }

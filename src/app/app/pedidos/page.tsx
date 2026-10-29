@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { auth } from "@/lib/auth";
 import { formatearFechaCorta, formatEuros } from "@/lib/format";
-import { listarPedidosCliente } from "@/server/data/orders";
+import {
+  liberarPedidosCaducadosSinFallar,
+  listarPedidosCliente,
+} from "@/server/data/orders";
 
 export const metadata = {
   title: "Mis pedidos",
@@ -17,6 +20,7 @@ export default async function PedidosPage() {
     redirect("/login?callbackUrl=/app/pedidos");
   }
 
+  await liberarPedidosCaducadosSinFallar();
   const pedidos = await listarPedidosCliente(session.user.id);
 
   return (

@@ -74,13 +74,15 @@ enum QuoteStatus {
   expirado
 }
 
-/// Estado de un pedido de la tienda. En Fase 2 solo se crea `pendiente`;
-/// el resto queda preparado para la gestion administrativa posterior.
+/// Estado de un pedido de la tienda. El checkout crea `pendiente`; `caducado`
+/// solo lo pone el sistema cuando vence `expiresAt` sin cobro (`cancelado` es
+/// siempre una decisión humana).
 enum OrderStatus {
   pendiente
   pagado
   entregado
   cancelado
+  caducado
 }
 
 /// Motivo de un movimiento del libro de stock.
@@ -90,6 +92,7 @@ enum StockMovementReason {
   cancelacion_pedido
   reposicion
   ajuste
+  caducidad_pedido
 }
 
 model User {
@@ -328,6 +331,15 @@ model Order {
   /// pedidos creados fuera del checkout (por ejemplo, una importacion futura).
   idempotencyKey String?
 
+  /// createdAt + `Config.pendingOrderHours`, copiado al crear el pedido. Un
+  /// pedido `pendiente` vencido pasa a `caducado` de forma perezosa al leer.
+  /// Nulo = no caduca (pedidos que nunca estuvieron pendientes tras la migración).
+  expiresAt DateTime?
+
+  /// Momento del cobro. Se rellena en la transición a `pagado`; los pedidos
+  /// cobrados antes de existir el campo lo tienen aproximado con `updatedAt`.
+  paidAt DateTime?
+
   items          OrderItem[]
   stockMovements StockMovement[]
 
@@ -336,6 +348,8 @@ model Order {
 
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
+  @@index([status, expiresAt])
+  @@index([paidAt])
   @@map("orders")
 }
 
@@ -408,6 +422,7 @@ model Config {
   expirationDays       Int      @default(7)
   inactiveRequestHours Int      @default(48)
   openWorkLogHours     Int      @default(8)
+  pendingOrderHours    Int      @default(48)
   updatedAt            DateTime @updatedAt
 
   @@map("config")

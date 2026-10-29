@@ -4,7 +4,12 @@ vi.mock("@/server/data/products", () => ({
   listarProductosPorIds: vi.fn(),
 }));
 
+vi.mock("@/server/data/orders", () => ({
+  liberarPedidosCaducadosSinFallar: vi.fn(),
+}));
+
 import { obtenerProductosCarritoAction } from "@/server/actions/cart";
+import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 import { listarProductosPorIds } from "@/server/data/products";
 
 const PRODUCTOS = [
@@ -36,11 +41,20 @@ describe("acción de lectura del carrito", () => {
     expect(resultado).toEqual(PRODUCTOS);
   });
 
+  it("libera los pedidos caducados antes de leer el stock", async () => {
+    await obtenerProductosCarritoAction(["prod-a"]);
+
+    expect(
+      vi.mocked(liberarPedidosCaducadosSinFallar).mock.invocationCallOrder[0],
+    ).toBeLessThan(vi.mocked(listarProductosPorIds).mock.invocationCallOrder[0]);
+  });
+
   it("no consulta la base de datos con IDs inválidos", async () => {
     const resultado = await obtenerProductosCarritoAction([""]);
 
     expect(resultado).toEqual([]);
     expect(listarProductosPorIds).not.toHaveBeenCalled();
+    expect(liberarPedidosCaducadosSinFallar).not.toHaveBeenCalled();
   });
 
   it("no consulta si el carrito supera el máximo de líneas", async () => {
