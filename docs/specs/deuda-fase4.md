@@ -1,6 +1,6 @@
 # Spec Deuda previa a la Fase 4 — Caducidad de pedidos y tests del checkout
 
-**Estado:** spec cerrada, pendiente de implementar (es lo siguiente). Va antes de la Fase 4 y prepara la pasarela de pago (5.3),
+**Estado:** implementada en `07e7e15`. Va antes de la Fase 4 y prepara la pasarela de pago (5.3),
 que se apoya en estos mismos pedidos.
 
 ## Objetivo
