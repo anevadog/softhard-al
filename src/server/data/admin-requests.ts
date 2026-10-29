@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import type { ServiceStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import {
@@ -30,12 +31,26 @@ export async function obtenerConfig(): Promise<ConfigNegocio | null> {
 }
 
 /**
+ * Pendientes de cobro (flujo de caja, no ingreso): listas para entregar, con
+ * importe final > 0 y sin cobro registrado. Lo usan el listado y el dashboard.
+ */
+export const WHERE_PENDIENTE_COBRO = {
+  status: "lista",
+  paidAt: null,
+  quote: { is: { finalAmount: { gt: 0 } } },
+} as const satisfies Prisma.ServiceRequestWhereInput;
+
+/**
  * Listado del panel. `soloFaltasRepuesto` deja solo las reparaciones con alguna
- * falta de repuesto sin atender, filtrando en la consulta.
+ * falta de repuesto sin atender y `soloPendientesCobro`, las pendientes de
+ * cobro; ambos filtran en la consulta.
  */
 export async function listarSolicitudesAdmin(
   estado?: ServiceStatus,
-  { soloFaltasRepuesto = false }: { soloFaltasRepuesto?: boolean } = {},
+  {
+    soloFaltasRepuesto = false,
+    soloPendientesCobro = false,
+  }: { soloFaltasRepuesto?: boolean; soloPendientesCobro?: boolean } = {},
 ): Promise<SolicitudAdminResumen[]> {
   const solicitudes = await prisma.serviceRequest.findMany({
     where: {
@@ -43,6 +58,7 @@ export async function listarSolicitudesAdmin(
       ...(soloFaltasRepuesto
         ? { notes: { some: { type: "falta_repuesto", resolvedAt: null } } }
         : {}),
+      ...(soloPendientesCobro ? WHERE_PENDIENTE_COBRO : {}),
     },
     orderBy: { createdAt: "desc" },
     select: {

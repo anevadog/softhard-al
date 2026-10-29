@@ -41,6 +41,28 @@ const diaSemana = new Intl.DateTimeFormat("es-ES", {
   month: "short",
 });
 
+const mesCorto = new Intl.DateTimeFormat("es-ES", {
+  timeZone: ZONA_HORARIA,
+  month: "short",
+  year: "2-digit",
+});
+
+const mesLargo = new Intl.DateTimeFormat("es-ES", {
+  timeZone: ZONA_HORARIA,
+  month: "long",
+  year: "numeric",
+});
+
+/** "oct 26": eje del gráfico de ingresos. */
+export function formatearMesCorto(fecha: Date): string {
+  return mesCorto.format(fecha);
+}
+
+/** "octubre de 2026": tablas y tooltips. */
+export function formatearMes(fecha: Date): string {
+  return mesLargo.format(fecha);
+}
+
 /**
  * Formatea un importe en euros con formato local (es-ES).
  * Se usa en presupuestos e importes finales de las solicitudes.

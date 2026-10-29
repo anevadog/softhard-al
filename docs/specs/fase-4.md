@@ -3,7 +3,7 @@
 **Estado:** en curso. Hechas 4.0 (`a64bc0c`), 4.3a (`d9c708e`) y 4.3b: las
 retroactivas `MIG` (`acfb311`, migración `20261029101854_facturas_retroactivas`,
 aparte de la de 4.3a porque esa ya estaba aplicada) y el seed histórico
-(`src/server/seed/`). Faltan 4.1 y 4.2. Requiere la deuda previa
+(`596f969`, `src/server/seed/`), y 4.1 (`/admin/dashboard`). Falta 4.2. Requiere la deuda previa
 (`deuda-fase4.md`), ya cerrada.
 
 ## Objetivo
