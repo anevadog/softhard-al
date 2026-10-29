@@ -4,7 +4,7 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 completada` · `Fase 3 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `492 tests + 13 de integración`
+`Fase 1 completada` · `Fase 2 completada` · `Fase 3 completada` · `Fase 4 completada` · `Fase 5 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `609 tests + 106 de integración` · `CI en GitHub Actions`
 
 ## Capturas
 
@@ -19,6 +19,28 @@ Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, impor
 **Detalle de la solicitud**
 
 ![Detalle de una solicitud con el presupuesto y los botones para aceptar o rechazar](docs/capturas/detalle-solicitud.png)
+
+**Dashboard de ingresos** (Fase 4.1): ingresos netos por factura, por concepto y con las rectificativas restadas en su mes
+
+![Dashboard con las tarjetas de ingresos netos, ventas, reparaciones, diagnósticos, rectificado y número de facturas](docs/capturas/dashboard-ingresos.jpg)
+
+![Gráfico de barras de los últimos 12 meses (ventas frente a reparaciones y diagnósticos) con su tabla equivalente](docs/capturas/dashboard-grafico.jpg)
+
+**Facturas simuladas** (Fase 4.3): listado con series FAC, RECT y MIG, y exportación a CSV (Fase 4.2)
+
+![Listado de facturas con filtros, formulario de exportación a CSV y facturas ordinarias y retroactivas](docs/capturas/facturas.jpg)
+
+![Detalle de una factura simplificada con el desglose de IVA por línea y el botón para emitir la rectificativa](docs/capturas/factura-detalle.jpg)
+
+**Pasarela de pago simulada** (Fase 5.3) y el pedido cobrado con tarjeta y su factura
+
+![Pasarela simulada con el importe del pedido y los botones Pagar, Simular error y Abandonar](docs/capturas/pasarela-mock.jpg)
+
+![Detalle del pedido en el panel: pagado con tarjeta (pago online), registrado por el sistema y con su factura FAC](docs/capturas/pedido-pagado.jpg)
+
+**Cola de emails transaccionales** (Fase 5.2)
+
+![Panel de emails con el filtro por estado y el email de pedido confirmado enviado](docs/capturas/emails.jpg)
 
 ## Índice
 
@@ -110,6 +132,28 @@ Spec completa en [`docs/specs/fase-3.md`](docs/specs/fase-3.md). La unidad de tr
 - **3.5 Notas y falta de repuesto:** notas internas ligadas a la reparación, normales o de falta de repuesto; el trabajador escribe en las suyas abiertas y el staff en cualquiera. Las faltas pendientes se destacan en el listado del panel hasta que el encargado las marca como atendidas. El cliente nunca las ve.
 - **3.6 Avisos sin actividad:** cada página de `/trabajador` avisa de las reparaciones propias que superan las horas sin actividad configuradas, con enlace a cada una; el aviso desaparece con cualquier actividad. El panel muestra el bloque «Requieren atención» con las reparaciones sin actividad y las devueltas sin responsable. Una reparación devuelta ya no se puede tomar: solo la reasigna el encargado.
 - **3.7 Vistas y reportes:** `/admin/reportes` con horas por trabajador y por reparación (semana y acumulado), reparaciones por estado y listas completas de avisos; lista de fichajes filtrable por trabajador y semana; historial de estados en el detalle de la solicitud y filtro de solicitudes con faltas de repuesto pendientes. Las semanas van de lunes a domingo en hora de Madrid.
+
+### Deuda previa a la Fase 4 (completada)
+
+Spec en [`docs/specs/deuda-fase4.md`](docs/specs/deuda-fase4.md). Un pedido pendiente caduca a las 48 h sin pago (estado propio `caducado`, distinto de `cancelado`) y su stock se libera de forma perezosa al leer, sin cron. El checkout y el ciclo del pedido tienen tests de integración, incluida concurrencia real.
+
+### Fase 4: cobros, facturas e ingresos (completada)
+
+Spec en [`docs/specs/fase-4.md`](docs/specs/fase-4.md). Importes B2C con IVA incluido; el desglose solo aparece en la factura.
+
+- **4.0 Registro de cobros:** fecha, importe, método y autor en el propio pedido o reparación, registrados una sola vez. Entregar una reparación con importe exige el cobro.
+- **4.3 Facturación simulada:** factura inmutable al cobrar (serie `FAC`), rectificativas en negativo (`RECT`), re-emisión para corregir datos y facturas retroactivas (`MIG`) para los cobros anteriores. Numeración correlativa sin huecos y triggers que impiden modificarlas. NIF opcional del cliente: con él, factura completa.
+- **Seed histórico:** 12 meses de reparaciones, pedidos y facturas deterministas, para ver el dashboard con datos desde el primer arranque.
+- **4.1 Dashboard:** `/admin/dashboard` con ingresos por factura (todas las series, con signo) agregados en PostgreSQL por mes de Madrid, gráfico SVG propio, pedidos perdidos y reparaciones pendientes de cobro.
+- **4.2 Exportación a CSV:** ingresos, facturas, pedidos y reparaciones para Excel en español (`;`, coma decimal, BOM), con protección contra inyección de fórmulas y tope de filas.
+
+### Fase 5: CI, emails y pagos (completada)
+
+Spec en [`docs/specs/fase-5.md`](docs/specs/fase-5.md).
+
+- **5.1 CI:** GitHub Actions con lint, tipos, tests unitarios, tests de integración, migraciones y build contra un PostgreSQL de usar y tirar (unos 2 minutos).
+- **5.2 Emails transaccionales:** pedido confirmado, presupuesto listo y reparación lista, encolados en `pending_emails` en la misma transacción que el evento (Transactional Outbox) y enviados por un worker con reintentos. En desarrollo se ven en Mailpit; `/admin/emails` permite reintentar los fallidos.
+- **5.3 Pasarela de pago simulada:** el cliente paga online pedidos y reparaciones listas; la pasarela es un canal más junto al cobro manual, con factura en la misma transacción, confirmación idempotente y reembolso automático si el pago llega tarde.
 
 ## Stack tecnológico
 
@@ -373,8 +417,8 @@ una condición atómica para no dejar stock negativo y el movimiento se guarda e
 misma transacción. La ficha del panel muestra los últimos 10 movimientos y enlaza al
 pedido cuando existe.
 
-**Deuda conocida:** un pedido pendiente retiene el stock descontado hasta que se
-cancela; no hay liberación automática ni reserva al añadir al carrito.
+Un pedido pendiente retiene el stock descontado hasta que se paga, se cancela o
+caduca (48 h); no hay reserva al añadir al carrito.
 
 ### Taller: concurrencia y reglas en servidor
 
@@ -424,15 +468,14 @@ pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **492 tests unitarios** en 56 archivos (`npm run test`, sin base de datos), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, reportes, límite de intentos de login y dirección de recogida. La capa de datos se prueba con Prisma mockeado.
-- **13 tests de integración** (`npm run test:integration`) contra PostgreSQL real: índice único parcial de fichajes (`P2002`), check de salida, filtros por relación en `updateMany`, recuentos filtrados, cambio de hora en los reportes, límite de login y privacidad del cliente. Usan una base aparte, `<base>_test`, derivada de `DATABASE_URL` (solo hosts locales); cada test va en una transacción que se revierte, y antes se aplican las migraciones con `prisma migrate deploy`. La base se crea una vez:
+- **609 tests unitarios** en 70 archivos (`npm run test`, sin base de datos), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, reportes, límite de intentos de login y dirección de recogida. La capa de datos se prueba con Prisma mockeado.
+- **106 tests de integración** (`npm run test:integration`) contra PostgreSQL real: índices únicos parciales y checks, filtros por relación en `updateMany`, cambio de hora en los reportes, límite de login, privacidad del cliente, checkout, caducidad, cobros, facturas (también las retroactivas frente a `lib/vat.ts`), dashboard, CSV, emails y pasarela. Los de concurrencia real (`*.concurrencia.int.test.ts`) usan conexiones separadas y limpian por prefijo. Usan una base aparte, `<base>_test`, derivada de `DATABASE_URL` (solo hosts locales); cada test va en una transacción que se revierte, y antes se aplican las migraciones con `prisma migrate deploy`. La base se crea una vez:
 
   ```bash
   docker compose exec db createdb -U postgres softhard_test
   ```
 - TypeScript estricto y ESLint en cada cambio.
 - **Integración continua** (`.github/workflows/ci.yml`, GitHub Actions): en cada push a `main` y en cada pull request ejecuta lint → tipos → tests unitarios → tests de integración → `prisma migrate deploy` → `npm run build`, contra un PostgreSQL 16 de usar y tirar en el propio runner (credenciales ficticias en el workflow, sin secretos ni despliegue). Una ejecución nueva cancela la anterior de la misma rama. Para que una PR no se pueda fusionar en rojo, protege `main` en GitHub (*Settings → Branches → Add rule*: *Require status checks to pass* con el check **Lint, tests y build**); es un ajuste del repositorio, no del código.
-- **Deuda conocida:** los pedidos pendientes retienen stock hasta que se cancelan y no se libera automáticamente; checkout y pedidos aún no tienen tests de integración.
 
 ### Server Components y Server Actions
 
@@ -488,6 +531,26 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] D4 Tests de integración contra PostgreSQL real.
 - [x] D5 El panel de fichajes conserva semana y trabajador tras cerrar o corregir.
 - [ ] Capturas del README con el taller (manual).
+
+### Deuda previa a la Fase 4 — completada
+
+- [x] Caducidad de pedidos pendientes (48 h) con estado `caducado` y liberación de stock.
+- [x] Tests de integración del checkout y del pedido, con concurrencia real.
+
+### Fase 4 — completada
+
+- [x] 4.0 Registro de cobros unificado en pedidos y reparaciones.
+- [x] 4.3 Facturación simulada: FAC, RECT, re-emisión y retroactivas MIG.
+- [x] Seed histórico de 12 meses.
+- [x] 4.1 Dashboard de ingresos por factura.
+- [x] 4.2 Exportación a CSV.
+
+### Fase 5 — completada
+
+- [x] 5.1 CI con GitHub Actions.
+- [x] 5.2 Emails transaccionales con outbox, worker y Mailpit.
+- [x] 5.3 Pasarela de pago simulada con reembolsos.
+- [ ] Prueba manual del envío real a Mailpit.
 
 ## Fuera de alcance
 
