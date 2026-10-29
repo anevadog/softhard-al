@@ -161,6 +161,10 @@ En Windows sin OpenSSL, usa Git Bash/WSL o cualquier generador de secretos de al
 | `AUTH_SECRET` | Secreto con el que se firman los JWT |
 | `AUTH_URL` | URL base de la aplicación (`http://localhost:3000`) |
 | `NEXTAUTH_URL` | Compatibilidad con Auth.js v4; mismo valor que `AUTH_URL` |
+| `EMAIL_PROVIDER` | Opcional. `console` (por defecto: no envía nada), `mailpit` en desarrollo; `resend`, preparado pero no activo |
+| `MAILPIT_URL` | Opcional. API de Mailpit (`http://localhost:8025`) |
+| `EMAIL_FROM` | Opcional. Remitente de los emails (`SoftHard A&L (demo) <no-reply@softhard-al.demo>`) |
+| `APP_URL` | Opcional. URL base de los enlaces de los emails (`http://localhost:3000`) |
 
 ```bash
 # 4. Levanta PostgreSQL con Docker
@@ -187,6 +191,26 @@ npm run dev
 Abre [http://localhost:3000](http://localhost:3000).
 
 > `src/generated/` está excluido del repositorio. Si el cliente de Prisma no existe tras el clone, ejecuta `npx prisma generate`.
+
+### Emails en desarrollo (Mailpit)
+
+La app envía tres emails transaccionales: pedido confirmado (al crear el pedido), presupuesto listo y reparación lista. Se encolan en la tabla `pending_emails` en la misma transacción que el evento y los envía un worker. En desarrollo se capturan con [Mailpit](https://mailpit.axllent.org/): nada sale a Internet.
+
+```bash
+# 1. Levanta Mailpit (solo escucha en localhost: SMTP 1025, web 8025)
+docker compose up -d mailpit
+```
+
+Sin Docker, descarga el binario de Mailpit para tu sistema desde sus *releases* en GitHub y ejecútalo; usa los mismos puertos por defecto.
+
+Añade a tu `.env` `EMAIL_PROVIDER="mailpit"` y reinicia `npm run dev`. Sin esa variable se usa `console`, que no envía nada.
+
+```bash
+# 2. Arranca el worker de la cola (en otra terminal)
+npm run worker:emails
+```
+
+Abre [http://localhost:8025](http://localhost:8025). Tras cada acción que encola, la app intenta además un envío inmediato (`after()` de Next), así que los emails suelen llegar aunque el worker no esté arrancado; si ese envío falla, lo recoge el worker. Los fallidos (5 intentos) se ven y se reintentan en `/admin/emails`. La entrega es **al menos una vez**: si el proceso cae justo entre el envío y la marca `enviado`, ese email puede llegar dos veces.
 
 ### Producción
 

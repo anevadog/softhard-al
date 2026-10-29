@@ -80,6 +80,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 Productos
               </Link>
               <Link
+                href="/admin/emails"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Emails
+              </Link>
+              <Link
                 href="/trabajador"
                 className="text-slate-600 transition-colors hover:text-slate-900"
               >

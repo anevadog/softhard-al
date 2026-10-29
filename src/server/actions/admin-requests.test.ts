@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FORM_STATE_INICIAL } from "@/lib/form-state";
 
+vi.mock("@/server/email-dispatch", () => ({
+  programarEnvioEmails: vi.fn(),
+}));
+
 vi.mock("@/server/authorization", () => ({
   requerirPersonalTaller: vi.fn(),
   requerirStaff: vi.fn(),

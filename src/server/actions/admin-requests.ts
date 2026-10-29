@@ -21,6 +21,7 @@ import {
   cambiarEstadoSolicitud,
   type MotivoCambioEstado,
 } from "@/server/data/service-status";
+import { programarEnvioEmails } from "@/server/email-dispatch";
 
 export async function crearPresupuestoAction(
   _prevState: FormState,
@@ -92,6 +93,7 @@ export async function crearPresupuestoAction(
   revalidatePath(`/admin/solicitudes/${parsed.data.requestId}`);
   revalidatePath("/app/solicitudes");
   revalidatePath(`/app/solicitudes/${parsed.data.requestId}`);
+  programarEnvioEmails();
 
   redirect(`/admin/solicitudes/${parsed.data.requestId}?presupuesto=1`);
 }
@@ -150,6 +152,10 @@ export async function cambiarEstadoAction(
   revalidatePath(`/app/solicitudes/${parsed.data.requestId}`);
   revalidatePath("/trabajador");
   revalidatePath(`/trabajador/reparaciones/${parsed.data.requestId}`);
+
+  if (parsed.data.estadoNuevo === "lista") {
+    programarEnvioEmails();
+  }
 
   if (personal.role === "trabajador") {
     redirect(`/trabajador/reparaciones/${parsed.data.requestId}?estado=1`);

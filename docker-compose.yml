@@ -11,5 +11,14 @@ services:
     volumes:
       - softhard_pgdata:/var/lib/postgresql/data
 
+  # Emails de desarrollo (5.2): todo lo que envía la app con EMAIL_PROVIDER=mailpit
+  # se ve en http://localhost:8025 y nunca sale a Internet. Solo en localhost.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
 volumes:
   softhard_pgdata:

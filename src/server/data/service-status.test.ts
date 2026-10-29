@@ -1,6 +1,13 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Los emails (5.2) se prueban en integración; aquí el encolado es un no-op.
+vi.mock("@/server/data/emails", () => ({
+  encolarPedidoConfirmadoEnTx: vi.fn().mockResolvedValue(true),
+  encolarPresupuestoListoEnTx: vi.fn().mockResolvedValue(true),
+  encolarReparacionListaEnTx: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     $transaction: vi.fn(),
