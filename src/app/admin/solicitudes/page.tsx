@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { AttentionPanel } from "@/components/admin/attention-panel";
+import { ExportCsvForm } from "@/components/admin/export-csv-form";
+import { ultimosDias } from "@/lib/exports";
 import { RequestsTable } from "@/components/admin/requests-table";
 import {
   SERVICE_STATUSES,
@@ -102,6 +104,13 @@ export default async function AdminSolicitudesPage({
           />
         ))}
       </nav>
+
+      <ExportCsvForm
+        accion="/admin/exportar/reparaciones.csv"
+        {...ultimosDias(new Date(), 30)}
+        filtros={{ estado: filtro }}
+        descripcion={`Una fila por solicitud con entrada en el rango${filtro ? `, solo «${SERVICE_STATUS_META[filtro].label}»` : ""}.`}
+      />
 
       <RequestsTable solicitudes={solicitudes} />
     </div>

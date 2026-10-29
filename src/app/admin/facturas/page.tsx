@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { ExportCsvForm } from "@/components/admin/export-csv-form";
 import type { InvoiceConcept, InvoiceSeries } from "@/generated/prisma/enums";
+import { partesEnMadrid } from "@/lib/work-logs";
 import { formatearFechaCorta, formatEuros } from "@/lib/format";
 import { INVOICE_CONCEPT_LABELS, INVOICE_SERIES_LABELS } from "@/lib/invoices";
 import {
@@ -40,6 +42,7 @@ export default async function AdminFacturasPage({
 
   const { facturas, total } = await listarFacturasAdmin({ anio, serie, concepto, cliente, pagina });
   const paginas = Math.max(1, Math.ceil(total / TAMANO_PAGINA_FACTURAS));
+  const anioExportacion = anio ?? partesEnMadrid(new Date()).year;
 
   function enlacePagina(destino: number): string {
     const query = new URLSearchParams();
@@ -105,6 +108,14 @@ export default async function AdminFacturasPage({
           </Link>
         </div>
       </form>
+
+      <ExportCsvForm
+        accion="/admin/exportar/facturas.csv"
+        desde={`${anioExportacion}-01-01`}
+        hasta={`${anioExportacion}-12-31`}
+        filtros={{ serie, concepto }}
+        descripcion="Una fila por factura emitida en el rango, con signo (las rectificativas en negativo), con la serie y el concepto filtrados."
+      />
 
       {facturas.length === 0 ? (
         <p className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">

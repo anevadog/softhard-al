@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ExportCsvForm } from "@/components/admin/export-csv-form";
 import { PeriodoNav } from "@/components/admin/periodo-nav";
 import { RevenueChart } from "@/components/admin/revenue-chart";
 import { ingresosPorMes, periodoDesdeParam, resumirIngresos } from "@/lib/dashboard";
+import { diaMadrid } from "@/lib/exports";
 import { formatEuros, formatearFechaCorta } from "@/lib/format";
 import { requerirStaff } from "@/server/authorization";
 import {
@@ -93,6 +95,13 @@ export default async function DashboardPage({
           </Seccion>
         </>
       )}
+
+      <ExportCsvForm
+        accion="/admin/exportar/ingresos.csv"
+        desde={diaMadrid(periodo.inicio)}
+        hasta={diaMadrid(new Date(periodo.fin.getTime() - 1))}
+        descripcion="Una fila por factura emitida en el rango, con signo: con el rango del periodo, la suma del total coincide con los ingresos netos."
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Seccion id="pedidos-perdidos" titulo="Pedidos perdidos en el periodo">
