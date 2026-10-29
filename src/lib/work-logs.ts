@@ -89,7 +89,7 @@ type PartesFecha = {
   second: number;
 };
 
-function partesEnMadrid(instante: Date): PartesFecha {
+export function partesEnMadrid(instante: Date): PartesFecha {
   const partes = Object.fromEntries(
     partesFormatter
       .formatToParts(instante)
