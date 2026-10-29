@@ -2,8 +2,14 @@
 @memory.md
 
 ## Claude Code
-- Para tareas de la Fase 3, lee docs/specs/fase-3.md antes de planificar (no está
-  importado para ahorrar contexto).
+- Antes de planificar una tarea, lee su spec (no están importadas para ahorrar
+  contexto): Fase 3 → docs/specs/fase-3.md; deuda previa a la Fase 4 →
+  docs/specs/deuda-fase4.md; Fase 4 → docs/specs/fase-4.md; Fase 5 →
+  docs/specs/fase-5.md. Orden acordado: deuda → Fase 4 (4.0 → 4.3 → 4.1 → 4.2)
+  → Fase 5. Los cobros (pedidos y reparaciones) se registran en la propia
+  entidad desde 4.0 (`paidAt`, `paidAmount`…) y emiten la factura. Los ingresos
+  se calculan sobre `Invoice.total` por `issuedAt` (rectificativas en negativo);
+  `paidAt` es solo flujo de caja y auditoría.
 - Antes de usar la base de datos, comprueba que DATABASE_URL apunta a localhost y
   dímelo.
 - Migraciones: genéralas con --create-only, enséñame el SQL antes de aplicarlas y
