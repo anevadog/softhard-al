@@ -165,6 +165,7 @@ En Windows sin OpenSSL, usa Git Bash/WSL o cualquier generador de secretos de al
 | `MAILPIT_URL` | Opcional. API de Mailpit (`http://localhost:8025`) |
 | `EMAIL_FROM` | Opcional. Remitente de los emails (`SoftHard A&L (demo) <no-reply@softhard-al.demo>`) |
 | `APP_URL` | Opcional. URL base de los enlaces de los emails (`http://localhost:3000`) |
+| `PAYMENT_PROVIDER` | Opcional. `mock` (por defecto): pasarela simulada en `/pago/mock/<sesión>`, sin cobros reales; `stripe`, reservado y no activo |
 
 ```bash
 # 4. Levanta PostgreSQL con Docker

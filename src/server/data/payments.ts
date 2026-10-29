@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import type { ServiceStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import { pedidoCaducado, precioDesdeCentimos } from "@/lib/orders";
@@ -6,6 +7,7 @@ import {
   cobroEsperadoSolicitud,
   validarImporteCobro,
   type CobroRegistrado,
+  type ConceptoCobroSolicitud,
   type MetodoPagoManual,
   type MotivoImporteInvalido,
 } from "@/lib/payments";
@@ -65,7 +67,16 @@ function importeDecimal(importe: number): string {
   return precioDesdeCentimos(Math.round(importe * 100));
 }
 
-function camposCobro(datos: DatosRegistroCobro, ahora: Date) {
+/** Campos de cobro de la entidad; los comparten el registro manual y la pasarela. */
+export type CamposCobro = {
+  paidAt: Date;
+  paidAmount: string;
+  paymentMethod: string;
+  paidById: string | null;
+  paymentNote: string | null;
+};
+
+function camposCobro(datos: DatosRegistroCobro, ahora: Date): CamposCobro {
   return {
     paidAt: ahora,
     paidAmount: importeDecimal(datos.importe),
@@ -73,6 +84,61 @@ function camposCobro(datos: DatosRegistroCobro, ahora: Date) {
     paidById: datos.staff.id,
     paymentNote: datos.nota,
   };
+}
+
+/**
+ * Cobro de un pedido dentro de una transacción ya abierta: el `updateMany`
+ * condicional (pendiente, sin cobro y no vencido) pasa el pedido a `pagado` y
+ * la factura se emite en la misma transacción. `false` si otra operación ganó.
+ */
+export async function cobrarPedidoEnTx(
+  tx: Prisma.TransactionClient,
+  id: string,
+  campos: CamposCobro,
+): Promise<boolean> {
+  const actualizado = await tx.order.updateMany({
+    where: {
+      id,
+      status: "pendiente",
+      paidAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: campos.paidAt } }],
+    },
+    data: { status: "pagado", ...campos },
+  });
+
+  if (actualizado.count === 0) {
+    return false;
+  }
+
+  await emitirFacturaDeCobroEnTx(tx, { tipo: "pedido", id }, campos.paidAt);
+
+  return true;
+}
+
+/**
+ * Cobro de una solicitud dentro de una transacción ya abierta, condicionado al
+ * estado que se vio y a `paidAt` nulo; no cambia el estado. La factura se
+ * emite en la misma transacción. `false` si otra operación ganó.
+ */
+export async function cobrarSolicitudEnTx(
+  tx: Prisma.TransactionClient,
+  datos: { id: string; estado: ServiceStatus; concepto: ConceptoCobroSolicitud; campos: CamposCobro },
+): Promise<boolean> {
+  const actualizado = await tx.serviceRequest.updateMany({
+    where: { id: datos.id, status: datos.estado, paidAt: null },
+    data: {
+      ...datos.campos,
+      ...(datos.concepto === "reparacion" ? { lastActivityAt: datos.campos.paidAt } : {}),
+    },
+  });
+
+  if (actualizado.count === 0) {
+    return false;
+  }
+
+  await emitirFacturaDeCobroEnTx(tx, { tipo: "solicitud", id: datos.id }, datos.campos.paidAt);
+
+  return true;
 }
 
 /**
@@ -112,25 +178,9 @@ export async function registrarCobroPedido(
     return importe;
   }
 
-  const cobrado = await prisma.$transaction(async (tx) => {
-    const actualizado = await tx.order.updateMany({
-      where: {
-        id: datos.id,
-        status: "pendiente",
-        paidAt: null,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: ahora } }],
-      },
-      data: { status: "pagado", ...camposCobro(datos, ahora) },
-    });
-
-    if (actualizado.count === 0) {
-      return false;
-    }
-
-    await emitirFacturaDeCobroEnTx(tx, { tipo: "pedido", id: datos.id }, ahora);
-
-    return true;
-  });
+  const cobrado = await prisma.$transaction((tx) =>
+    cobrarPedidoEnTx(tx, datos.id, camposCobro(datos, ahora)),
+  );
 
   if (cobrado) {
     return { ok: true };
@@ -222,23 +272,14 @@ export async function registrarCobroSolicitud(
   }
 
   const estado: ServiceStatus = solicitud.status;
-  const cobrado = await prisma.$transaction(async (tx) => {
-    const actualizado = await tx.serviceRequest.updateMany({
-      where: { id: datos.id, status: estado, paidAt: null },
-      data: {
-        ...camposCobro(datos, ahora),
-        ...(esperado.concepto === "reparacion" ? { lastActivityAt: ahora } : {}),
-      },
-    });
-
-    if (actualizado.count === 0) {
-      return false;
-    }
-
-    await emitirFacturaDeCobroEnTx(tx, { tipo: "solicitud", id: datos.id }, ahora);
-
-    return true;
-  });
+  const cobrado = await prisma.$transaction((tx) =>
+    cobrarSolicitudEnTx(tx, {
+      id: datos.id,
+      estado,
+      concepto: esperado.concepto,
+      campos: camposCobro(datos, ahora),
+    }),
+  );
 
   if (cobrado) {
     return { ok: true };

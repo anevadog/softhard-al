@@ -123,6 +123,7 @@ model User {
   requestNotes         RequestNote[]              @relation("RequestNoteAuthor")
   resolvedRequestNotes RequestNote[]              @relation("RequestNoteResolver")
   invoices             Invoice[]                  @relation("InvoiceCustomer")
+  paymentSessions      PaymentSession[]
   issuedInvoices       Invoice[]                  @relation("InvoiceIssuedBy")
 
   @@index([role])
@@ -172,6 +173,7 @@ model ServiceRequest {
   paymentNote   String?
 
   invoices          Invoice[]
+  paymentSessions   PaymentSession[]
   statusHistory     ServiceStatusHistory[]
   assignmentHistory ServiceAssignmentHistory[]
   workLogs          WorkLog[]
@@ -370,9 +372,10 @@ model Order {
   paidBy        User?     @relation("OrderPaidBy", fields: [paidById], references: [id], onDelete: Restrict)
   paymentNote   String?
 
-  invoices       Invoice[]
-  items          OrderItem[]
-  stockMovements StockMovement[]
+  invoices        Invoice[]
+  paymentSessions PaymentSession[]
+  items           OrderItem[]
+  stockMovements  StockMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -448,15 +451,18 @@ model LoginAttempt {
 
 /// Configuración de negocio. Fila única: id fijo = 1.
 model Config {
-  id                   Int      @id @default(1)
-  diagnosticFee        Decimal  @default(30) @db.Decimal(10, 2)
-  expirationDays       Int      @default(7)
-  inactiveRequestHours Int      @default(48)
-  openWorkLogHours     Int      @default(8)
-  pendingOrderHours    Int      @default(48)
+  id                              Int      @id @default(1)
+  diagnosticFee                   Decimal  @default(30) @db.Decimal(10, 2)
+  expirationDays                  Int      @default(7)
+  inactiveRequestHours            Int      @default(48)
+  openWorkLogHours                Int      @default(8)
+  pendingOrderHours               Int      @default(48)
   /// Tipo de IVA en %. Se copia en cada factura al emitirla.
-  vatRate              Decimal  @default(21) @db.Decimal(5, 2)
-  updatedAt            DateTime @updatedAt
+  vatRate                         Decimal  @default(21) @db.Decimal(5, 2)
+  /// Solo modelado (5.3): cobrar el diagnóstico por adelantado. Ningún código
+  /// lo lee todavía; activarlo será una decisión y una spec posteriores.
+  requireDiagnosticPaymentUpfront Boolean  @default(false)
+  updatedAt                       DateTime @updatedAt
 
   @@map("config")
 }
@@ -628,4 +634,47 @@ model PendingEmail {
   @@unique([event, entityId])
   @@index([status, createdAt])
   @@map("pending_emails")
+}
+
+/// Estado de un intento de pago con la pasarela (5.3).
+enum PaymentSessionStatus {
+  pendiente
+  completada
+  fallida
+  abandonada
+  reembolsada
+}
+
+/// Rastro técnico de cada intento con la pasarela: idempotencia y reembolsos.
+/// La fuente de verdad del cobro siguen siendo los campos de la entidad
+/// (`paidAt`, `paidAmount`…). Exactamente uno de `orderId`/`requestId`
+/// (check SQL). El importe es el esperado en el momento de crear la sesión,
+/// calculado siempre en el servidor.
+model PaymentSession {
+  id             String               @id @default(cuid())
+  /// `mock` (más adelante, `stripe`).
+  provider       String
+  /// Identificador de la sesión en el proveedor; único (idempotencia).
+  providerRef    String               @unique
+  orderId        String?
+  order          Order?               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  requestId      String?
+  request        ServiceRequest?      @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  customerId     String
+  customer       User                 @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  /// Importe esperado (IVA incluido) en céntimos.
+  amountCentimos Int
+  status         PaymentSessionStatus @default(pendiente)
+  /// Ruta interna a la que vuelve el cliente tras la pasarela.
+  returnPath     String
+  refundReason   String?
+  completedAt    DateTime?
+  refundedAt     DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([orderId, status])
+  @@index([requestId, status])
+  @@index([customerId, createdAt])
+  @@map("payment_sessions")
 }

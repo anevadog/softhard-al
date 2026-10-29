@@ -2,7 +2,9 @@
 
 **Estado:** en curso: 5.1 hecha (`.github/workflows/ci.yml`, en verde en la
 PR #1, unos 2 min); 5.2 hecha en la rama `feat/emails` (outbox `pending_emails`,
-worker, `/admin/emails`); falta 5.3. Va después de la Fase 4: los pagos emiten facturas (4.3) y
+worker, `/admin/emails`); 5.3 hecha en la rama `feat/pagos` (pasarela
+mock, `PaymentSession`, reembolsos). Fase 5 completa salvo la QA manual de
+Mailpit y de la pasarela. Va después de la Fase 4: los pagos emiten facturas (4.3) y
 usan la caducidad de pedidos (`deuda-fase4.md`). El proyecto sigue siendo privado
 y no se despliega: todo funciona en local y en GitHub Actions.
 

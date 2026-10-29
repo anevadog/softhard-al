@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { InvoiceChain } from "@/components/invoices/invoice-chain";
+import { OnlinePaymentButton, OnlinePaymentNotice } from "@/components/payments/online-payment";
 import { auth } from "@/lib/auth";
 import {
   formatearFechaCorta,
@@ -13,7 +14,9 @@ import {
   liberarPedidosCaducadosSinFallar,
   obtenerPedidoCliente,
 } from "@/server/data/orders";
+import { iniciarPagoPedidoAction } from "@/server/actions/online-payments";
 import { listarFacturasDeEntidad } from "@/server/data/invoices";
+import { puedePagarOnline } from "@/server/data/online-payments";
 
 export const metadata = {
   title: "Detalle del pedido",
@@ -24,7 +27,7 @@ export default async function PedidoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ creado?: string | string[] }>;
+  searchParams: Promise<{ creado?: string | string[]; pago?: string }>;
 }) {
   const { id } = await params;
   const session = await auth();
@@ -33,7 +36,7 @@ export default async function PedidoPage({
     redirect(`/login?callbackUrl=${encodeURIComponent(`/app/pedidos/${id}`)}`);
   }
 
-  const { creado } = await searchParams;
+  const { creado, pago } = await searchParams;
   await liberarPedidosCaducadosSinFallar();
   const pedido = await obtenerPedidoCliente(id, session.user.id);
 
@@ -41,7 +44,10 @@ export default async function PedidoPage({
     notFound();
   }
 
-  const facturas = await listarFacturasDeEntidad({ tipo: "pedido", id: pedido.id });
+  const [facturas, pagable] = await Promise.all([
+    listarFacturasDeEntidad({ tipo: "pedido", id: pedido.id }),
+    puedePagarOnline({ tipo: "pedido", id: pedido.id }, session.user.id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -70,10 +76,12 @@ export default async function PedidoPage({
           role="status"
           className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
         >
-          Pedido creado correctamente. Hemos descontado el stock y guardado tu
-          compra.
+          Pedido creado correctamente. Hemos reservado el stock y te hemos enviado
+          la confirmación; ya puedes pagarlo.
         </p>
       ) : null}
+
+      <OnlinePaymentNotice pago={pago} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="text-base font-semibold text-slate-900">
@@ -108,18 +116,23 @@ export default async function PedidoPage({
       </section>
 
       {pedido.status === "pendiente" ? (
-        <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700">
-          Hemos registrado tu pedido. Nos pondremos en contacto para coordinar la
-          entrega.
-          {pedido.expiresAt ? (
-            <>
-              {" "}
-              Si no se paga antes del{" "}
-              <strong>{formatearFechaHora(pedido.expiresAt)}</strong>, caducará y
-              los productos volverán a estar disponibles.
-            </>
+        <div className="space-y-3 rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700">
+          <p>
+            Hemos registrado tu pedido. Nos pondremos en contacto para coordinar la
+            entrega.
+            {pedido.expiresAt ? (
+              <>
+                {" "}
+                Si no se paga antes del{" "}
+                <strong>{formatearFechaHora(pedido.expiresAt)}</strong>, caducará y
+                los productos volverán a estar disponibles.
+              </>
+            ) : null}
+          </p>
+          {pagable ? (
+            <OnlinePaymentButton accion={iniciarPagoPedidoAction} id={pedido.id} importe={pedido.total} />
           ) : null}
-        </p>
+        </div>
       ) : null}
 
       {pedido.status === "caducado" ? (
