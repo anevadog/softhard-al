@@ -7,6 +7,8 @@ import { QuoteForm } from "@/components/admin/quote-form";
 import { StatusForm } from "@/components/admin/status-form";
 import { ResolveNoteForm } from "@/components/admin/resolve-note-form";
 import { StaffWorkLogActions } from "@/components/admin/work-log-staff-actions";
+import { PaymentSummary } from "@/components/payments/payment-summary";
+import { RegisterPaymentForm } from "@/components/payments/register-payment-form";
 import { QuoteSummary } from "@/components/service-requests/quote-summary";
 import { StatusBadge } from "@/components/service-requests/status-badge";
 import { NoteForm } from "@/components/taller/note-form";
@@ -19,6 +21,7 @@ import {
   MODALITY_LABELS,
   TIME_SLOT_LABELS,
 } from "@/lib/service-requests";
+import { cobroEsperadoSolicitud, exigeCobroParaEntregar } from "@/lib/payments";
 import { esEstadoFinal } from "@/lib/service-status";
 import {
   obtenerConfig,
@@ -45,10 +48,11 @@ export default async function AdminSolicitudPage({
     asignacion?: string;
     fichaje?: string;
     nota?: string;
+    cobro?: string;
   }>;
 }) {
   const { id } = await params;
-  const { presupuesto, estado, asignacion, fichaje, nota } = await searchParams;
+  const { presupuesto, estado, asignacion, fichaje, nota, cobro } = await searchParams;
   const staff = await requerirStaff();
   const solicitud = await obtenerSolicitudAdmin(id);
 
@@ -65,6 +69,15 @@ export default async function AdminSolicitudPage({
     listarNotasReparacion(solicitud.id),
   ]);
   const ahora = new Date();
+  const cobroPendiente = solicitud.cobro
+    ? null
+    : cobroEsperadoSolicitud({
+        status: solicitud.status,
+        paidAt: null,
+        quote: solicitud.quote,
+      });
+  const entregaRequierePago =
+    !solicitud.cobro && exigeCobroParaEntregar(solicitud.quote);
 
   return (
     <div className="space-y-6">
@@ -94,6 +107,15 @@ export default async function AdminSolicitudPage({
           role="status"
         >
           Presupuesto creado. La solicitud pasa a diagnosticada.
+        </p>
+      ) : null}
+
+      {cobro === "1" ? (
+        <p
+          className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          role="status"
+        >
+          Cobro registrado.
         </p>
       ) : null}
 
@@ -219,9 +241,30 @@ export default async function AdminSolicitudPage({
                 status={solicitud.status}
                 role={staff.role}
                 tienePresupuesto={Boolean(solicitud.quote)}
+                entregaRequierePago={entregaRequierePago}
               />
             </div>
           </section>
+
+          {solicitud.cobro || cobroPendiente ? (
+            <section className="rounded-xl border border-slate-200 bg-white p-6">
+              <h2 className="text-base font-semibold text-slate-900">
+                {cobroPendiente?.concepto === "diagnostico" ? "Cobro del diagnóstico" : "Cobro"}
+              </h2>
+              <div className="mt-4">
+                {solicitud.cobro ? (
+                  <PaymentSummary cobro={solicitud.cobro} />
+                ) : cobroPendiente ? (
+                  <RegisterPaymentForm
+                    entidad="solicitud"
+                    id={solicitud.id}
+                    importeEsperado={cobroPendiente.importe}
+                    puedeEditarImporte={staff.role === "admin"}
+                  />
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           <section className="rounded-xl border border-slate-200 bg-white p-6">
             <h2 className="text-base font-semibold text-slate-900">

@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { vi } from "vitest";
 
 import { PrismaClient } from "@/generated/prisma/client";
+import type { Role } from "@/generated/prisma/enums";
 import { asegurarBdDeTest } from "@/test/integration/test-database";
 
 /**
@@ -14,6 +15,7 @@ export type ContextoSinRollback = {
   db: PrismaClient;
   prefijo: string;
   crearCliente: () => Promise<{ id: string }>;
+  crearUsuario: (role: Role) => Promise<{ id: string }>;
   crearProducto: (stock: number) => Promise<{ id: string }>;
 };
 
@@ -42,22 +44,25 @@ export async function sinRollback(
   (globalThis as unknown as { prisma?: unknown }).prisma = db;
   vi.resetModules();
 
+  const crearUsuario = async (role: Role) => {
+    secuencia += 1;
+
+    return db.user.create({
+      data: {
+        email: `${prefijo}-${secuencia}@test.local`,
+        name: `${prefijo} ${role} ${secuencia}`,
+        role,
+        passwordHash: "sin-login",
+      },
+      select: { id: true },
+    });
+  };
+
   const contexto: ContextoSinRollback = {
     db,
     prefijo,
-    crearCliente: async () => {
-      secuencia += 1;
-
-      return db.user.create({
-        data: {
-          email: `${prefijo}-${secuencia}@test.local`,
-          name: `${prefijo} cliente ${secuencia}`,
-          role: "cliente",
-          passwordHash: "sin-login",
-        },
-        select: { id: true },
-      });
-    },
+    crearCliente: () => crearUsuario("cliente"),
+    crearUsuario,
     crearProducto: async (stock) => {
       secuencia += 1;
 
@@ -102,6 +107,9 @@ async function limpiar(db: PrismaClient, prefijo: string): Promise<void> {
   const productos = { name: { startsWith: `${prefijo} ` } };
 
   await db.stockMovement.deleteMany({ where: { product: productos } });
+  // Solicitudes antes que usuarios: `paidById` es Restrict. Presupuestos e
+  // historiales se borran en cascada con la solicitud.
+  await db.serviceRequest.deleteMany({ where: { client: usuarios } });
   await db.orderItem.deleteMany({ where: { order: { user: usuarios } } });
   await db.order.deleteMany({ where: { user: usuarios } });
   await db.product.deleteMany({ where: productos });
@@ -110,7 +118,8 @@ async function limpiar(db: PrismaClient, prefijo: string): Promise<void> {
   const residuos =
     (await db.user.count({ where: usuarios })) +
     (await db.product.count({ where: productos })) +
-    (await db.order.count({ where: { user: usuarios } }));
+    (await db.order.count({ where: { user: usuarios } })) +
+    (await db.serviceRequest.count({ where: { client: usuarios } }));
 
   if (residuos > 0) {
     throw new Error(`sinRollback: quedan ${residuos} filas con el prefijo ${prefijo}.`);

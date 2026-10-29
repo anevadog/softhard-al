@@ -57,6 +57,7 @@ export default async function PedidoPage({
         </div>
         <p className="mt-1 text-sm text-slate-600">
           Creado el {formatearFechaCorta(pedido.createdAt)}
+          {pedido.paidAt ? ` · Pagado el ${formatearFechaCorta(pedido.paidAt)}` : null}
         </p>
       </div>
 

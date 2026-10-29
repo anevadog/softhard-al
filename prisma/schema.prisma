@@ -107,7 +107,9 @@ model User {
 
   requests             ServiceRequest[]           @relation("ClientRequests")
   assigned             ServiceRequest[]           @relation("AssignedRequests")
-  orders               Order[]
+  orders               Order[]                    @relation("ClientOrders")
+  paidOrders           Order[]                    @relation("OrderPaidBy")
+  paidRequests         ServiceRequest[]           @relation("RequestPaidBy")
   stockMovements       StockMovement[]
   statusChanges        ServiceStatusHistory[]     @relation("StatusChangedBy")
   assignmentChanges    ServiceAssignmentHistory[] @relation("AssignmentChangedBy")
@@ -154,6 +156,16 @@ model ServiceRequest {
   /// cambio de estado, asignación, nota o fichaje.
   lastActivityAt DateTime @default(now())
 
+  /// Cobro de la reparación (en `lista`) o del diagnóstico (`rechazada` o
+  /// `expirada`). Mismas reglas y checks SQL que en `Order`. Con cobro
+  /// esperado > 0, entregar exige `paidAt`.
+  paidAt        DateTime?
+  paidAmount    Decimal?  @db.Decimal(10, 2)
+  paymentMethod String?
+  paidById      String?
+  paidBy        User?     @relation("RequestPaidBy", fields: [paidById], references: [id], onDelete: Restrict)
+  paymentNote   String?
+
   statusHistory     ServiceStatusHistory[]
   assignmentHistory ServiceAssignmentHistory[]
   workLogs          WorkLog[]
@@ -166,6 +178,7 @@ model ServiceRequest {
   @@index([status])
   @@index([assigneeId])
   @@index([lastActivityAt])
+  @@index([paidAt])
   @@map("service_requests")
 }
 
@@ -322,7 +335,7 @@ model Order {
   id String @id @default(cuid())
 
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("ClientOrders", fields: [userId], references: [id], onDelete: Cascade)
 
   total  Decimal     @db.Decimal(10, 2)
   status OrderStatus @default(pendiente)
@@ -336,9 +349,20 @@ model Order {
   /// Nulo = no caduca (pedidos que nunca estuvieron pendientes tras la migración).
   expiresAt DateTime?
 
-  /// Momento del cobro. Se rellena en la transición a `pagado`; los pedidos
-  /// cobrados antes de existir el campo lo tienen aproximado con `updatedAt`.
-  paidAt DateTime?
+  /// Cobro (flujo de caja y auditoría, no ingreso). Se registra una sola vez,
+  /// con el paso a `pagado`, y nunca se edita ni se vacía. Los pedidos cobrados
+  /// antes de existir el registro tienen `paidAt` aproximado con `updatedAt`.
+  /// Checks SQL: `paidAt` y `paidAmount` van juntos, `paidAmount > 0`, método
+  /// de una lista cerrada y, sin cobro, el resto de campos nulos.
+  paidAt        DateTime?
+  /// Importe cobrado, IVA incluido. Por defecto el total; solo admin lo cambia.
+  paidAmount    Decimal?  @db.Decimal(10, 2)
+  /// `efectivo`, `bizum`, `transferencia` o `tarjeta_online` (pasarela, 5.3).
+  paymentMethod String?
+  /// Staff que registró el cobro; nulo = sistema, pasarela o cobro migrado.
+  paidById      String?
+  paidBy        User?     @relation("OrderPaidBy", fields: [paidById], references: [id], onDelete: Restrict)
+  paymentNote   String?
 
   items          OrderItem[]
   stockMovements StockMovement[]

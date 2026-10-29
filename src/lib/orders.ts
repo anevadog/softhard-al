@@ -1,4 +1,5 @@
 import type { OrderStatus } from "@/generated/prisma/enums";
+import type { CobroRegistrado } from "@/lib/payments";
 
 /** Estados en el orden del flujo. Deben coincidir con el enum de Prisma. */
 export const ORDER_STATUSES = [
@@ -41,13 +42,14 @@ export function etiquetaEstadoPedido(status: OrderStatus): string {
 }
 
 /**
- * Regla única de transición del pedido hecha por personas. `pagado` se marca a
- * mano porque no hay pasarela; entregado, cancelado y caducado son finales.
- * `caducado` no aparece como destino: solo lo pone el sistema al vencer el
- * pedido (`liberarPedidosCaducados`).
+ * Regla única de transición del pedido hecha por personas desde el formulario
+ * de estado. Ni `pagado` ni `caducado` aparecen como destino: un pedido solo
+ * pasa a `pagado` registrando su cobro (`registrarCobroPedido`) y a `caducado`
+ * lo lleva el sistema al vencer (`liberarPedidosCaducados`). Entregado,
+ * cancelado y caducado son finales.
  */
 const TRANSICIONES_PEDIDO: Record<OrderStatus, readonly OrderStatus[]> = {
-  pendiente: ["pagado", "cancelado"],
+  pendiente: ["cancelado"],
   pagado: ["entregado", "cancelado"],
   entregado: [],
   cancelado: [],
@@ -267,6 +269,8 @@ export type PedidoDetalle = {
   status: OrderStatus;
   createdAt: Date;
   expiresAt: Date | null;
+  /** El cliente solo ve cuándo se cobró. */
+  paidAt: Date | null;
   items: PedidoLinea[];
 };
 
@@ -299,7 +303,7 @@ export type PedidoAdminDetalle = {
   status: OrderStatus;
   createdAt: Date;
   expiresAt: Date | null;
-  paidAt: Date | null;
+  cobro: CobroRegistrado | null;
   client: ClientePedidoAdmin;
   items: PedidoAdminLinea[];
 };

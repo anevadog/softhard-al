@@ -22,11 +22,14 @@ export function StatusForm({
   status,
   role,
   tienePresupuesto,
+  entregaRequierePago = false,
 }: {
   requestId: string;
   status: ServiceStatus;
   role: RolTaller;
   tienePresupuesto: boolean;
+  /** Hay importe que cobrar y no hay cobro: "Entregada" sale deshabilitada. */
+  entregaRequierePago?: boolean;
 }) {
   const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
   const [pending, startTransition] = useTransition();
@@ -52,14 +55,22 @@ export function StatusForm({
     tienePresupuesto,
   });
 
+  // La UI no es la seguridad: el servidor rechaza igualmente entregar sin cobro.
+  const bloqueada = (estado: ServiceStatus) =>
+    entregaRequierePago && estado === "entregada";
+  const seleccionables = opciones.filter((opcion) => !bloqueada(opcion.estado));
+
+  // Si el único paso normal era entregar y está bloqueado, no se preselecciona
+  // ninguna corrección: hay que elegirla a propósito.
   const opcionInicial =
-    opciones.find((opcion) => !opcion.requiereMotivo) ?? opciones[0];
+    seleccionables.find((opcion) => !opcion.requiereMotivo) ??
+    (entregaRequierePago ? undefined : seleccionables[0]);
 
   const [estadoNuevo, setEstadoNuevo] = useState<ServiceStatus | "">(
     opcionInicial?.estado ?? "",
   );
 
-  const estadoSeleccionado = opciones.some(
+  const estadoSeleccionado = seleccionables.some(
     (opcion) => opcion.estado === estadoNuevo,
   )
     ? estadoNuevo
@@ -96,12 +107,28 @@ export function StatusForm({
           onChange={(event) => setEstadoNuevo(event.target.value as ServiceStatus)}
           className={selectClass}
         >
+          {estadoSeleccionado === "" ? (
+            <option value="" disabled>
+              Elige un estado
+            </option>
+          ) : null}
           {opciones.map((opcion) => (
-            <option key={opcion.estado} value={opcion.estado}>
+            <option
+              key={opcion.estado}
+              value={opcion.estado}
+              disabled={bloqueada(opcion.estado)}
+              title={bloqueada(opcion.estado) ? "Requiere pago" : undefined}
+            >
               {SERVICE_STATUS_META[opcion.estado].label}
+              {bloqueada(opcion.estado) ? " (requiere pago)" : ""}
             </option>
           ))}
         </select>
+        {entregaRequierePago && opciones.some((opcion) => opcion.estado === "entregada") ? (
+          <p className="mt-1 text-xs text-amber-700" title="Requiere pago">
+            Para entregar, registra antes el pago en la sección Cobro.
+          </p>
+        ) : null}
       </div>
 
       <div>
@@ -141,7 +168,7 @@ export function StatusForm({
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !opcionSeleccionada}
         className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
       >
         {pending ? "Guardando…" : "Cambiar estado"}

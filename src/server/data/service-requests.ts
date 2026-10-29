@@ -145,6 +145,7 @@ export async function obtenerSolicitudCliente(
       modality: true,
       address: true,
       timeSlot: true,
+      paidAt: true,
       quote: {
         select: {
           budgetAmount: true,

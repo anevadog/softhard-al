@@ -172,3 +172,38 @@ export async function libroStock(
 
   return { stock: producto.stock, suma: agregado._sum.variation ?? 0 };
 }
+
+/**
+ * Presupuesto ya decidido (o pendiente) para una solicitud. `finalAmount` sigue
+ * la regla de negocio: presupuesto − X si se acepta, X si se rechaza.
+ */
+export async function crearPresupuesto(
+  tx: Tx,
+  datos: {
+    requestId: string;
+    status: "pendiente" | "aceptado" | "rechazado" | "expirado";
+    budgetAmount?: string;
+    diagnosticFee?: string;
+  },
+) {
+  const budget = datos.budgetAmount ?? "120.00";
+  const fee = datos.diagnosticFee ?? "30.00";
+  const finalAmount =
+    datos.status === "aceptado"
+      ? (Number(budget) - Number(fee)).toFixed(2)
+      : datos.status === "rechazado"
+        ? fee
+        : null;
+
+  return tx.quote.create({
+    data: {
+      requestId: datos.requestId,
+      budgetAmount: budget,
+      diagnosticFee: fee,
+      finalAmount,
+      status: datos.status,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      decidedAt: datos.status === "pendiente" ? null : new Date(),
+    },
+  });
+}

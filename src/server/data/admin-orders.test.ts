@@ -140,6 +140,12 @@ describe("obtenerPedidoAdmin", () => {
       total: "59.90",
       status: "pagado",
       createdAt: new Date("2026-10-26T10:00:00.000Z"),
+      expiresAt: null,
+      paidAt: new Date("2026-10-26T11:00:00.000Z"),
+      paidAmount: "59.90",
+      paymentMethod: "bizum",
+      paymentNote: null,
+      paidBy: { name: "Encargado Demo" },
       user: {
         name: "Cliente Demo",
         email: "cliente@example.com",
@@ -161,6 +167,14 @@ describe("obtenerPedidoAdmin", () => {
       total: 59.9,
       status: "pagado",
       createdAt: new Date("2026-10-26T10:00:00.000Z"),
+      expiresAt: null,
+      cobro: {
+        paidAt: new Date("2026-10-26T11:00:00.000Z"),
+        paidAmount: 59.9,
+        paymentMethod: "bizum",
+        paidByName: "Encargado Demo",
+        paymentNote: null,
+      },
       client: {
         name: "Cliente Demo",
         email: "cliente@example.com",
@@ -211,33 +225,12 @@ describe("cambiarEstadoPedidoAdmin", () => {
     await expect(
       cambiarEstadoPedidoAdmin({
         orderId: "order-1",
-        estadoEsperado: "pendiente",
-        estadoNuevo: "pagado",
+        estadoEsperado: "pagado",
+        estadoNuevo: "entregado",
         userId: "staff-1",
         motivo: null,
       }),
     ).resolves.toEqual({ ok: true, productIds: [] });
-
-    expect(prisma.order.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: "order-1",
-        status: "pendiente",
-        OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }],
-      },
-      data: { status: "pagado", paidAt: expect.any(Date) },
-    });
-  });
-
-  it("entregar no exige vigencia ni toca paidAt", async () => {
-    vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 1 });
-
-    await cambiarEstadoPedidoAdmin({
-      orderId: "order-1",
-      estadoEsperado: "pagado",
-      estadoNuevo: "entregado",
-      userId: "staff-1",
-      motivo: null,
-    });
 
     expect(prisma.order.updateMany).toHaveBeenCalledWith({
       where: { id: "order-1", status: "pagado" },
@@ -245,13 +238,7 @@ describe("cambiarEstadoPedidoAdmin", () => {
     });
   });
 
-  it("no cobra un pedido vencido aunque aún figure como pendiente", async () => {
-    vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 0 });
-    vi.mocked(prisma.order.findUnique).mockResolvedValue({
-      status: "pendiente",
-      expiresAt: new Date("2020-01-01T00:00:00Z"),
-    } as never);
-
+  it("no marca pagado a mano: el cobro se registra aparte", async () => {
     await expect(
       cambiarEstadoPedidoAdmin({
         orderId: "order-1",
@@ -260,25 +247,9 @@ describe("cambiarEstadoPedidoAdmin", () => {
         userId: "staff-1",
         motivo: null,
       }),
-    ).resolves.toEqual({ ok: false, motivo: "caducado" });
-  });
+    ).resolves.toEqual({ ok: false, motivo: "transicion-invalida" });
 
-  it("explica que un pedido ya marcado caducado no se puede cobrar", async () => {
-    vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 0 });
-    vi.mocked(prisma.order.findUnique).mockResolvedValue({
-      status: "caducado",
-      expiresAt: new Date("2020-01-01T00:00:00Z"),
-    } as never);
-
-    await expect(
-      cambiarEstadoPedidoAdmin({
-        orderId: "order-1",
-        estadoEsperado: "pendiente",
-        estadoNuevo: "pagado",
-        userId: "staff-1",
-        motivo: null,
-      }),
-    ).resolves.toEqual({ ok: false, motivo: "caducado" });
+    expect(prisma.order.updateMany).not.toHaveBeenCalled();
   });
 
   it("devuelve conflicto si el estado esperado ya no coincide", async () => {
@@ -287,8 +258,8 @@ describe("cambiarEstadoPedidoAdmin", () => {
     await expect(
       cambiarEstadoPedidoAdmin({
         orderId: "order-1",
-        estadoEsperado: "pendiente",
-        estadoNuevo: "pagado",
+        estadoEsperado: "pagado",
+        estadoNuevo: "entregado",
         userId: "staff-1",
         motivo: null,
       }),

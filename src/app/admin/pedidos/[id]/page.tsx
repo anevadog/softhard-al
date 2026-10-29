@@ -3,11 +3,15 @@ import { notFound } from "next/navigation";
 
 import { OrderStatusForm } from "@/components/admin/order-status-form";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { PaymentSummary } from "@/components/payments/payment-summary";
+import { RegisterPaymentForm } from "@/components/payments/register-payment-form";
 import {
   formatearFechaCorta,
   formatearFechaHora,
   formatEuros,
 } from "@/lib/format";
+import { cobroEsperadoPedido } from "@/lib/payments";
+import { requerirStaff } from "@/server/authorization";
 import { obtenerPedidoAdmin } from "@/server/data/admin-orders";
 import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 
@@ -20,16 +24,24 @@ export default async function AdminPedidoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; cobro?: string }>;
 }) {
+  const staff = await requerirStaff();
   const { id } = await params;
-  const { estado } = await searchParams;
+  const { estado, cobro } = await searchParams;
   await liberarPedidosCaducadosSinFallar();
   const pedido = await obtenerPedidoAdmin(id);
 
   if (!pedido) {
     notFound();
   }
+
+  const importeEsperado = pedido.cobro
+    ? null
+    : cobroEsperadoPedido(
+        { status: pedido.status, total: pedido.total, expiresAt: pedido.expiresAt, paidAt: null },
+        new Date(),
+      );
 
   return (
     <div className="space-y-6">
@@ -51,9 +63,6 @@ export default async function AdminPedidoPage({
           {pedido.status === "pendiente" && pedido.expiresAt
             ? ` · Caduca el ${formatearFechaHora(pedido.expiresAt)}`
             : null}
-          {pedido.paidAt
-            ? ` · Cobrado el ${formatearFechaHora(pedido.paidAt)}`
-            : null}
         </p>
       </div>
 
@@ -61,6 +70,15 @@ export default async function AdminPedidoPage({
         <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
           Caducado por impago: el sistema lo marcó al vencer y repuso el stock de
           sus productos.
+        </p>
+      ) : null}
+
+      {cobro === "1" ? (
+        <p
+          className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+          role="status"
+        >
+          Cobro registrado. El pedido ha pasado a pagado.
         </p>
       ) : null}
 
@@ -159,13 +177,32 @@ export default async function AdminPedidoPage({
         </div>
 
         <aside className="space-y-6">
+          {pedido.cobro || importeEsperado !== null ? (
+            <section className="rounded-xl border border-slate-200 bg-white p-6">
+              <h2 className="text-base font-semibold text-slate-900">Cobro</h2>
+              <div className="mt-4">
+                {pedido.cobro ? (
+                  <PaymentSummary cobro={pedido.cobro} />
+                ) : importeEsperado !== null ? (
+                  <RegisterPaymentForm
+                    entidad="pedido"
+                    id={pedido.id}
+                    importeEsperado={importeEsperado}
+                    puedeEditarImporte={staff.role === "admin"}
+                  />
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
           <section className="rounded-xl border border-slate-200 bg-white p-6">
             <h2 className="text-base font-semibold text-slate-900">
               Cambiar estado
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Pendiente → pagado o cancelado. Pagado → entregado o cancelado.
-              Un pendiente sin pagar caduca solo al vencer.
+              Un pendiente pasa a pagado al registrar su cobro, o se cancela.
+              Pagado → entregado o cancelado. Un pendiente sin pagar caduca solo
+              al vencer.
             </p>
             <div className="mt-4">
               <OrderStatusForm orderId={pedido.id} status={pedido.status} />

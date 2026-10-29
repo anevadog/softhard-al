@@ -1,5 +1,6 @@
 import type { Prisma, ServiceStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { exigeCobroParaEntregar } from "@/lib/payments";
 import { calcularImporteSiAcepta, calcularImporteSiRechaza } from "@/lib/quotes";
 import {
   evaluarCambioEstado,
@@ -13,7 +14,8 @@ type ClienteTx = Prisma.TransactionClient;
 export type MotivoCambioEstado =
   | MotivoTransicionInvalida
   | "no-existe"
-  | "conflicto";
+  | "conflicto"
+  | "requiere-pago";
 
 export type ResultadoCambioEstadoSolicitud =
   | { ok: true }
@@ -46,6 +48,8 @@ export async function aplicarCambioEstadoEnTx(
     changedById: string | null;
     reason: string | null;
     assigneeId?: string;
+    /** Exige cobro registrado en la misma condición (entrega con importe > 0). */
+    exigirCobro?: boolean;
     ahora?: Date;
   },
 ): Promise<{ ok: true } | { ok: false; motivo: "conflicto" }> {
@@ -56,6 +60,7 @@ export async function aplicarCambioEstadoEnTx(
       id: datos.requestId,
       status: datos.estadoEsperado,
       ...(datos.assigneeId ? { assigneeId: datos.assigneeId } : {}),
+      ...(datos.exigirCobro ? { paidAt: { not: null } } : {}),
     },
     data: {
       status: datos.estadoNuevo,
@@ -102,10 +107,13 @@ export async function cambiarEstadoSolicitud(
     select: {
       status: true,
       assigneeId: true,
+      paidAt: true,
       quote: {
         select: {
+          status: true,
           budgetAmount: true,
           diagnosticFee: true,
+          finalAmount: true,
         },
       },
     },
@@ -141,6 +149,28 @@ export async function cambiarEstadoSolicitud(
     return { ok: false, motivo: evaluacion.motivo };
   }
 
+  // Cualquier paso a `entregada` (flujo normal o corrección) exige el cobro si
+  // hay algo que cobrar. Se comprueba aquí para dar el mensaje y otra vez en la
+  // condición del `updateMany`, por si el estado cambia entre medias.
+  const exigirCobro =
+    datos.estadoNuevo === "entregada" &&
+    exigeCobroParaEntregar(
+      solicitud.quote
+        ? {
+            status: solicitud.quote.status,
+            finalAmount:
+              solicitud.quote.finalAmount === null
+                ? null
+                : Number(solicitud.quote.finalAmount),
+            diagnosticFee: Number(solicitud.quote.diagnosticFee),
+          }
+        : null,
+    );
+
+  if (exigirCobro && solicitud.paidAt === null) {
+    return { ok: false, motivo: "requiere-pago" };
+  }
+
   const motivo = datos.motivo?.trim() || null;
   const ahora = new Date();
   const quote = solicitud.quote;
@@ -173,6 +203,7 @@ export async function cambiarEstadoSolicitud(
         ...(datos.rol === "trabajador"
           ? { assigneeId: datos.actorId }
           : {}),
+        exigirCobro,
         ahora,
       });
 
@@ -191,6 +222,17 @@ export async function cambiarEstadoSolicitud(
     return { ok: true };
   } catch (error) {
     if (error instanceof CambioEstadoEnConflicto) {
+      if (exigirCobro) {
+        const actual = await prisma.serviceRequest.findUnique({
+          where: { id: datos.requestId },
+          select: { status: true, paidAt: true },
+        });
+
+        if (actual?.status === datos.estadoEsperado && actual.paidAt === null) {
+          return { ok: false, motivo: "requiere-pago" };
+        }
+      }
+
       return { ok: false, motivo: "conflicto" };
     }
 

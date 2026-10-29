@@ -5,6 +5,7 @@ import {
   type SolicitudAdminDetalle,
   type SolicitudAdminResumen,
 } from "@/lib/service-requests";
+import { cobroDesdeFila, SELECT_COBRO } from "@/server/data/payments";
 import { aplicarCambioEstadoEnTx } from "@/server/data/service-status";
 
 export type ConfigNegocio = {
@@ -103,6 +104,7 @@ export async function obtenerSolicitudAdmin(
       timeSlot: true,
       preferredDate: true,
       expiresAt: true,
+      ...SELECT_COBRO,
       client: { select: { name: true, email: true, phone: true } },
       assignee: { select: { id: true, name: true, email: true } },
       quote: {
@@ -146,8 +148,11 @@ export async function obtenerSolicitudAdmin(
     return null;
   }
 
+  const { paidAt, paidAmount, paymentMethod, paymentNote, paidBy, ...resto } = solicitud;
+
   return {
-    ...solicitud,
+    ...resto,
+    cobro: cobroDesdeFila({ paidAt, paidAmount, paymentMethod, paymentNote, paidBy }),
     quote: solicitud.quote
       ? {
           ...solicitud.quote,

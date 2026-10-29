@@ -153,9 +153,9 @@ describe("caducidad de pedidos", () => {
 });
 
 describe("transiciones de pedido", () => {
-  it("permite pendiente → pagado y pendiente → cancelado", () => {
-    expect(puedeCambiarEstadoPedido("pendiente", "pagado")).toBe(true);
+  it("desde pendiente solo se cancela a mano: a pagado se llega registrando el cobro", () => {
     expect(puedeCambiarEstadoPedido("pendiente", "cancelado")).toBe(true);
+    expect(puedeCambiarEstadoPedido("pendiente", "pagado")).toBe(false);
   });
 
   it("permite pagado → entregado y pagado → cancelado", () => {

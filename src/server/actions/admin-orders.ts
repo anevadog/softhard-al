@@ -75,9 +75,7 @@ export async function cambiarEstadoPedidoAction(
       message:
         resultado.motivo === "transicion-invalida"
           ? "Ese cambio de estado no está permitido."
-          : resultado.motivo === "caducado"
-            ? "El pedido ha caducado: su stock se ha liberado y ya no se puede cobrar."
-            : "El pedido ha cambiado mientras lo editabas. Recarga la página y revisa el estado actual.",
+          : "El pedido ha cambiado mientras lo editabas. Recarga la página y revisa el estado actual.",
     };
   }
 

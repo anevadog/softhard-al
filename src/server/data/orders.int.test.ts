@@ -177,20 +177,21 @@ describe("estados del pedido desde el panel contra PostgreSQL", () => {
     return { orderId: resultado.pedidoId, producto, staff, cliente };
   }
 
-  it("marcar pagado rellena paidAt y entregar no lo cambia", () =>
+  it("registrar el cobro rellena paidAt y entregar no lo cambia", () =>
     enTransaccion(async (tx) => {
       const admin = await import("@/server/data/admin-orders");
+      const cobros = await import("@/server/data/payments");
       const { orderId, staff } = await pedidoPendiente(tx);
 
       await expect(
-        admin.cambiarEstadoPedidoAdmin({
-          orderId,
-          estadoEsperado: "pendiente",
-          estadoNuevo: "pagado",
-          userId: staff.id,
-          motivo: null,
+        cobros.registrarCobroPedido({
+          id: orderId,
+          importe: 20,
+          metodo: "efectivo",
+          nota: null,
+          staff: { id: staff.id, role: "encargado" },
         }),
-      ).resolves.toEqual({ ok: true, productIds: [] });
+      ).resolves.toEqual({ ok: true });
       const pagado = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
       expect(pagado.paidAt).toBeInstanceOf(Date);
 
@@ -209,17 +210,18 @@ describe("estados del pedido desde el panel contra PostgreSQL", () => {
   it("cancelar un pendiente o un pagado repone stock una sola vez", () =>
     enTransaccion(async (tx) => {
       const admin = await import("@/server/data/admin-orders");
+      const cobros = await import("@/server/data/payments");
 
       for (const cobrar of [false, true]) {
         const { orderId, producto, staff } = await pedidoPendiente(tx);
 
         if (cobrar) {
-          await admin.cambiarEstadoPedidoAdmin({
-            orderId,
-            estadoEsperado: "pendiente",
-            estadoNuevo: "pagado",
-            userId: staff.id,
-            motivo: null,
+          await cobros.registrarCobroPedido({
+            id: orderId,
+            importe: 20,
+            metodo: "efectivo",
+            nota: null,
+            staff: { id: staff.id, role: "encargado" },
           });
         }
 
@@ -275,17 +277,17 @@ describe("estados del pedido desde el panel contra PostgreSQL", () => {
 
   it("no cobra un pendiente vencido aunque la liberación aún no lo haya marcado", () =>
     enTransaccion(async (tx) => {
-      const admin = await import("@/server/data/admin-orders");
+      const cobros = await import("@/server/data/payments");
       const { orderId, staff } = await pedidoPendiente(tx);
       await vencer(tx, orderId);
 
       await expect(
-        admin.cambiarEstadoPedidoAdmin({
-          orderId,
-          estadoEsperado: "pendiente",
-          estadoNuevo: "pagado",
-          userId: staff.id,
-          motivo: null,
+        cobros.registrarCobroPedido({
+          id: orderId,
+          importe: 20,
+          metodo: "efectivo",
+          nota: null,
+          staff: { id: staff.id, role: "encargado" },
         }),
       ).resolves.toEqual({ ok: false, motivo: "caducado" });
 

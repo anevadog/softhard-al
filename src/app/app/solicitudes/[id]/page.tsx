@@ -64,6 +64,9 @@ export default async function SolicitudClientePage({
         </div>
         <p className="mt-1 text-sm text-slate-600">
           Solicitud creada el {formatearFechaCorta(solicitud.createdAt)}
+          {solicitud.paidAt
+            ? ` · Pagado el ${formatearFechaCorta(solicitud.paidAt)}`
+            : null}
         </p>
       </div>
 

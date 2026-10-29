@@ -5,6 +5,7 @@ import type {
   ServiceStatus,
   TimeSlot,
 } from "@/generated/prisma/enums";
+import type { CobroRegistrado } from "@/lib/payments";
 import type { EstadoHistorialTaller } from "@/lib/worker-requests";
 
 /**
@@ -160,6 +161,8 @@ export type SolicitudAdminDetalle = {
   client: { name: string; email: string; phone: string | null };
   assignee: { id: string; name: string; email: string } | null;
   quote: PresupuestoAdmin | null;
+  /** Cobro registrado de la reparación o del diagnóstico. */
+  cobro: CobroRegistrado | null;
   statusHistory: EstadoHistorialTaller[];
   assignmentHistory: AsignacionHistorial[];
 };
@@ -187,4 +190,6 @@ export type SolicitudClienteDetalle = {
   address: string | null;
   timeSlot: TimeSlot;
   quote: PresupuestoCliente | null;
+  /** El cliente solo ve cuándo se cobró, no quién ni la nota interna. */
+  paidAt: Date | null;
 };

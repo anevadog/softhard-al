@@ -35,8 +35,8 @@ function formulario(overrides: Record<string, string> = {}) {
   const data = new FormData();
   const valores = {
     orderId: "order-1",
-    estadoEsperado: "pendiente",
-    estadoNuevo: "pagado",
+    estadoEsperado: "pagado",
+    estadoNuevo: "entregado",
     motivo: "",
     ...overrides,
   };
@@ -63,15 +63,15 @@ describe("cambiarEstadoPedidoAction", () => {
     });
   });
 
-  it("cambia pendiente a pagado y redirige", async () => {
+  it("cambia pagado a entregado y redirige", async () => {
     await expect(
       cambiarEstadoPedidoAction(FORM_STATE_INICIAL, formulario()),
     ).rejects.toThrow("REDIRECT:/admin/pedidos/order-1?estado=1");
 
     expect(cambiarEstadoPedidoAdmin).toHaveBeenCalledWith({
       orderId: "order-1",
-      estadoEsperado: "pendiente",
-      estadoNuevo: "pagado",
+      estadoEsperado: "pagado",
+      estadoNuevo: "entregado",
       motivo: null,
       userId: "staff-1",
     });
@@ -84,10 +84,10 @@ describe("cambiarEstadoPedidoAction", () => {
     );
   });
 
-  it("rechaza una transición no permitida sin llamar a datos", async () => {
+  it("rechaza marcar pagado a mano: solo se cobra registrando el pago", async () => {
     const resultado = await cambiarEstadoPedidoAction(
       FORM_STATE_INICIAL,
-      formulario({ estadoNuevo: "entregado" }),
+      formulario({ estadoEsperado: "pendiente", estadoNuevo: "pagado" }),
     );
 
     expect(resultado.status).toBe("error");
@@ -152,23 +152,14 @@ describe("cambiarEstadoPedidoAction", () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it("libera los caducados antes de cambiar el estado y explica un pedido caducado", async () => {
-    vi.mocked(cambiarEstadoPedidoAdmin).mockResolvedValue({
-      ok: false,
-      motivo: "caducado",
-    });
-
-    const resultado = await cambiarEstadoPedidoAction(
-      FORM_STATE_INICIAL,
-      formulario(),
-    );
+  it("libera los caducados antes de cambiar el estado", async () => {
+    await expect(
+      cambiarEstadoPedidoAction(FORM_STATE_INICIAL, formulario()),
+    ).rejects.toThrow("REDIRECT:");
 
     expect(
       vi.mocked(liberarPedidosCaducadosSinFallar).mock.invocationCallOrder[0],
     ).toBeLessThan(vi.mocked(cambiarEstadoPedidoAdmin).mock.invocationCallOrder[0]);
-    expect(resultado.status).toBe("error");
-    expect(resultado.message).toContain("ha caducado");
-    expect(redirect).not.toHaveBeenCalled();
   });
 
   it("no ejecuta nada si el usuario no es staff", async () => {

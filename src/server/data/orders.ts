@@ -293,6 +293,7 @@ export async function obtenerPedidoCliente(
       status: true,
       createdAt: true,
       expiresAt: true,
+      paidAt: true,
       items: {
         orderBy: { id: "asc" },
         select: {
@@ -316,6 +317,7 @@ export async function obtenerPedidoCliente(
     status: pedido.status,
     createdAt: pedido.createdAt,
     expiresAt: pedido.expiresAt,
+    paidAt: pedido.paidAt,
     items: pedido.items.map((item) => {
       const priceCentimos = Math.round(Number(item.price) * 100);
 

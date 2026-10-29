@@ -137,6 +137,7 @@ export async function cambiarEstadoAction(
       "transicion-invalida": "Ese cambio no está permitido.",
       "motivo-obligatorio": "Indica el motivo de la corrección.",
       conflicto: "La solicitud ha cambiado. Recarga antes de volver a intentarlo.",
+      "requiere-pago": "Registra el pago antes de entregar.",
     };
 
     return { status: "error", message: mensajes[resultado.motivo] };
