@@ -1,5 +1,9 @@
 import type { OrderStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import {
+  bloquearEntidadEnTx,
+  tieneFacturaVigenteEnTx,
+} from "@/server/data/invoices";
 import { cobroDesdeFila, SELECT_COBRO } from "@/server/data/payments";
 import {
   ORDER_STATUSES,
@@ -114,7 +118,8 @@ export type DatosCambioEstadoPedido = {
 
 export type ResultadoCambioEstadoPedido =
   | { ok: true; productIds: string[] }
-  | { ok: false; motivo: "transicion-invalida" | "conflicto" };
+  | { ok: false; motivo: "transicion-invalida" | "conflicto" | "factura-vigente" };
+
 
 /**
  * Cambia el estado solo si sigue en el estado que vio la persona. La
@@ -144,6 +149,14 @@ export async function cambiarEstadoPedidoAdmin(
   }
 
   return prisma.$transaction(async (tx) => {
+    // Un pedido con factura vigente no se cancela: primero la rectificativa.
+    // Se bloquea la fila y se comprueba antes de escribir nada.
+    await bloquearEntidadEnTx(tx, { tipo: "pedido", id: datos.orderId });
+
+    if (await tieneFacturaVigenteEnTx(tx, { tipo: "pedido", id: datos.orderId })) {
+      return { ok: false as const, motivo: "factura-vigente" as const };
+    }
+
     const actualizado = await tx.order.updateMany({
       where: { id: datos.orderId, status: datos.estadoEsperado },
       data: { status: "cancelado" },

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { OrderStatusForm } from "@/components/admin/order-status-form";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { InvoiceChain } from "@/components/invoices/invoice-chain";
+import { ReissueInvoiceForm } from "@/components/invoices/invoice-forms";
 import { PaymentSummary } from "@/components/payments/payment-summary";
 import { RegisterPaymentForm } from "@/components/payments/register-payment-form";
 import {
@@ -10,9 +12,11 @@ import {
   formatearFechaHora,
   formatEuros,
 } from "@/lib/format";
+import { facturaVigente, puedeReemitir } from "@/lib/invoices";
 import { cobroEsperadoPedido } from "@/lib/payments";
 import { requerirStaff } from "@/server/authorization";
 import { obtenerPedidoAdmin } from "@/server/data/admin-orders";
+import { listarFacturasDeEntidad } from "@/server/data/invoices";
 import { liberarPedidosCaducadosSinFallar } from "@/server/data/orders";
 
 export const metadata = {
@@ -35,6 +39,14 @@ export default async function AdminPedidoPage({
   if (!pedido) {
     notFound();
   }
+
+  const facturas = await listarFacturasDeEntidad({ tipo: "pedido", id: pedido.id });
+  const hayFacturaVigente = facturaVigente(facturas) !== null;
+  const reemitible = puedeReemitir({
+    pagada: pedido.cobro !== null,
+    status: pedido.status,
+    facturas,
+  });
 
   const importeEsperado = pedido.cobro
     ? null
@@ -191,6 +203,20 @@ export default async function AdminPedidoPage({
                     puedeEditarImporte={staff.role === "admin"}
                   />
                 ) : null}
+
+          {facturas.length > 0 || reemitible ? (
+            <section className="rounded-xl border border-slate-200 bg-white p-6">
+              <h2 className="text-base font-semibold text-slate-900">Facturas</h2>
+              <div className="mt-3">
+                <InvoiceChain facturas={facturas} rutaFacturas="/admin/facturas" />
+                {reemitible ? (
+                  <div className="mt-4">
+                    <ReissueInvoiceForm entidad="pedido" id={pedido.id} />
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
               </div>
             </section>
           ) : null}
@@ -205,7 +231,11 @@ export default async function AdminPedidoPage({
               al vencer.
             </p>
             <div className="mt-4">
-              <OrderStatusForm orderId={pedido.id} status={pedido.status} />
+              <OrderStatusForm
+                orderId={pedido.id}
+                status={pedido.status}
+                facturaVigente={hayFacturaVigente}
+              />
             </div>
           </section>
         </aside>

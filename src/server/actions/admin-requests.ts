@@ -138,6 +138,7 @@ export async function cambiarEstadoAction(
       "motivo-obligatorio": "Indica el motivo de la corrección.",
       conflicto: "La solicitud ha cambiado. Recarga antes de volver a intentarlo.",
       "requiere-pago": "Registra el pago antes de entregar.",
+      "factura-vigente": "Tiene factura vigente: emite antes la rectificativa.",
     };
 
     return { status: "error", message: mensajes[resultado.motivo] };

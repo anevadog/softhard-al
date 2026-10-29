@@ -32,6 +32,12 @@ import {
 
 function crearTx() {
   return {
+    // Bloqueo de fila (SELECT … FOR UPDATE) antes de comprobar facturas.
+    $queryRaw: vi.fn().mockResolvedValue([{ id: "fila" }]),
+    // Sin facturas: ningún bloqueo por factura vigente.
+    invoice: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     order: {
       updateMany: vi.fn(),
     },

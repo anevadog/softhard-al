@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { QuoteDecision } from "@/components/service-requests/quote-decision";
 import { QuoteSummary } from "@/components/service-requests/quote-summary";
 import { StatusBadge } from "@/components/service-requests/status-badge";
+import { InvoiceChain } from "@/components/invoices/invoice-chain";
 import { auth } from "@/lib/auth";
 import { formatearFechaCorta, formatEuros } from "@/lib/format";
 import { estaExpirado, puedeDecidir } from "@/lib/quotes";
@@ -14,6 +15,7 @@ import {
   TIME_SLOT_LABELS,
 } from "@/lib/service-requests";
 import { obtenerSolicitudCliente } from "@/server/data/service-requests";
+import { listarFacturasDeEntidad } from "@/server/data/invoices";
 
 export const metadata = {
   title: "Detalle de solicitud",
@@ -39,6 +41,8 @@ export default async function SolicitudClientePage({
   if (!solicitud) {
     notFound();
   }
+
+  const facturas = await listarFacturasDeEntidad({ tipo: "solicitud", id: solicitud.id });
 
   const quote = solicitud.quote;
   const ahora = new Date();
@@ -139,6 +143,15 @@ export default async function SolicitudClientePage({
         </div>
 
         <div className="space-y-6 lg:col-span-2">
+          {facturas.length > 0 ? (
+            <section className="rounded-xl border border-slate-200 bg-white p-6">
+              <h2 className="text-base font-semibold text-slate-900">Facturas</h2>
+              <div className="mt-3">
+                <InvoiceChain facturas={facturas} rutaFacturas="/app/facturas" />
+              </div>
+            </section>
+          ) : null}
+
           <section className="rounded-xl border border-slate-200 bg-white p-6">
             <h2 className="text-base font-semibold text-slate-900">Presupuesto</h2>
 

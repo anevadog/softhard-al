@@ -107,6 +107,23 @@ async function limpiar(db: PrismaClient, prefijo: string): Promise<void> {
   const productos = { name: { startsWith: `${prefijo} ` } };
 
   await db.stockMovement.deleteMany({ where: { product: productos } });
+  // Las facturas son inmutables: el trigger solo deja borrarlas en una
+  // transacción que lo pida con SET LOCAL (y solo esta limpieza lo hace). Se
+  // borran primero las que ninguna otra referencia (rectificativas,
+  // re-emisiones) hasta vaciar la cadena.
+  await db.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe("SET LOCAL softhard.permitir_borrado_facturas = 'on'");
+
+    for (let vuelta = 0; vuelta < 20; vuelta += 1) {
+      const borradas = await tx.invoice.deleteMany({
+        where: { customer: usuarios, rectifications: { none: {} }, replacements: { none: {} } },
+      });
+
+      if (borradas.count === 0) {
+        break;
+      }
+    }
+  });
   // Solicitudes antes que usuarios: `paidById` es Restrict. Presupuestos e
   // historiales se borran en cascada con la solicitud.
   await db.serviceRequest.deleteMany({ where: { client: usuarios } });
@@ -119,7 +136,8 @@ async function limpiar(db: PrismaClient, prefijo: string): Promise<void> {
     (await db.user.count({ where: usuarios })) +
     (await db.product.count({ where: productos })) +
     (await db.order.count({ where: { user: usuarios } })) +
-    (await db.serviceRequest.count({ where: { client: usuarios } }));
+    (await db.serviceRequest.count({ where: { client: usuarios } })) +
+    (await db.invoice.count({ where: { customer: usuarios } }));
 
   if (residuos > 0) {
     throw new Error(`sinRollback: quedan ${residuos} filas con el prefijo ${prefijo}.`);

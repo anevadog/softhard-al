@@ -211,6 +211,7 @@ describe("estados del pedido desde el panel contra PostgreSQL", () => {
     enTransaccion(async (tx) => {
       const admin = await import("@/server/data/admin-orders");
       const cobros = await import("@/server/data/payments");
+      const facturas = await import("@/server/data/invoices");
 
       for (const cobrar of [false, true]) {
         const { orderId, producto, staff } = await pedidoPendiente(tx);
@@ -222,6 +223,13 @@ describe("estados del pedido desde el panel contra PostgreSQL", () => {
             metodo: "efectivo",
             nota: null,
             staff: { id: staff.id, role: "encargado" },
+          });
+          // Cobrado = facturado: para cancelar hay que rectificar antes la factura.
+          const factura = await tx.invoice.findFirstOrThrow({ where: { orderId } });
+          await facturas.emitirRectificativa({
+            invoiceId: factura.id,
+            motivo: "Devolución del pedido",
+            staffId: staff.id,
           });
         }
 

@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 bg-white print:hidden">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link href="/admin" className="text-sm font-semibold text-slate-900">
@@ -60,6 +60,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 className="text-slate-600 transition-colors hover:text-slate-900"
               >
                 Pedidos
+              </Link>
+              <Link
+                href="/admin/facturas"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Facturas
               </Link>
               <Link
                 href="/admin/productos"

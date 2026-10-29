@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 bg-white print:hidden">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <Link href="/app" className="text-sm font-semibold text-slate-900">
@@ -42,6 +42,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 className="text-slate-600 transition-colors hover:text-slate-900"
               >
                 Pedidos
+              </Link>
+              <Link
+                href="/app/facturas"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Facturas
+              </Link>
+              <Link
+                href="/app/perfil"
+                className="text-slate-600 transition-colors hover:text-slate-900"
+              >
+                Perfil
               </Link>
               {esPersonalTaller(session.user.role) ? (
                 <Link

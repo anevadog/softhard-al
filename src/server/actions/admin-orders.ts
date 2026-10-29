@@ -75,7 +75,9 @@ export async function cambiarEstadoPedidoAction(
       message:
         resultado.motivo === "transicion-invalida"
           ? "Ese cambio de estado no está permitido."
-          : "El pedido ha cambiado mientras lo editabas. Recarga la página y revisa el estado actual.",
+          : resultado.motivo === "factura-vigente"
+            ? "Cancela la factura primero: emite su rectificativa y vuelve a cancelar el pedido."
+            : "El pedido ha cambiado mientras lo editabas. Recarga la página y revisa el estado actual.",
     };
   }
 

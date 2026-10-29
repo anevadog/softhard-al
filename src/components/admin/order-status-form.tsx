@@ -17,9 +17,12 @@ const buttonBase =
 export function OrderStatusForm({
   orderId,
   status,
+  facturaVigente = false,
 }: {
   orderId: string;
   status: OrderStatus;
+  /** Con factura vigente no se cancela: primero la rectificativa. */
+  facturaVigente?: boolean;
 }) {
   const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
   const [pending, startTransition] = useTransition();
@@ -78,7 +81,16 @@ export function OrderStatusForm({
           </form>
         ))}
 
-      {siguientes.includes("cancelado") ? (
+      {siguientes.includes("cancelado") && facturaVigente ? (
+        <p
+          className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"
+          title="Cancela la factura primero"
+        >
+          Cancela la factura primero: emite su rectificativa y después podrás cancelar el pedido.
+        </p>
+      ) : null}
+
+      {siguientes.includes("cancelado") && !facturaVigente ? (
         <form
           onSubmit={alEnviar}
           className="space-y-3 border-t border-slate-100 pt-4"

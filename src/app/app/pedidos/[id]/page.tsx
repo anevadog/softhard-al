@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { InvoiceChain } from "@/components/invoices/invoice-chain";
 import { auth } from "@/lib/auth";
 import {
   formatearFechaCorta,
@@ -12,6 +13,7 @@ import {
   liberarPedidosCaducadosSinFallar,
   obtenerPedidoCliente,
 } from "@/server/data/orders";
+import { listarFacturasDeEntidad } from "@/server/data/invoices";
 
 export const metadata = {
   title: "Detalle del pedido",
@@ -38,6 +40,8 @@ export default async function PedidoPage({
   if (!pedido) {
     notFound();
   }
+
+  const facturas = await listarFacturasDeEntidad({ tipo: "pedido", id: pedido.id });
 
   return (
     <div className="space-y-6">
@@ -123,6 +127,15 @@ export default async function PedidoPage({
           Este pedido caducó porque no se pagó a tiempo. Hemos liberado el stock
           de sus productos; si todavía los quieres, haz un pedido nuevo.
         </p>
+      ) : null}
+
+      {facturas.length > 0 ? (
+        <section className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-900">Facturas</h2>
+          <div className="mt-3">
+            <InvoiceChain facturas={facturas} rutaFacturas="/app/facturas" />
+          </div>
+        </section>
       ) : null}
 
       <div className="flex flex-wrap gap-4 text-sm">

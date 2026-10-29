@@ -7,6 +7,10 @@ import {
   type MotivoTransicionInvalida,
   type RolTaller,
 } from "@/lib/service-status";
+import {
+  bloquearEntidadEnTx,
+  tieneFacturaVigenteEnTx,
+} from "@/server/data/invoices";
 import { cerrarFichajesAbiertosEnTx } from "@/server/data/work-logs";
 
 type ClienteTx = Prisma.TransactionClient;
@@ -15,7 +19,8 @@ export type MotivoCambioEstado =
   | MotivoTransicionInvalida
   | "no-existe"
   | "conflicto"
-  | "requiere-pago";
+  | "requiere-pago"
+  | "factura-vigente";
 
 export type ResultadoCambioEstadoSolicitud =
   | { ok: true }
@@ -93,6 +98,7 @@ export async function aplicarCambioEstadoEnTx(
 }
 
 class CambioEstadoEnConflicto extends Error {}
+class CambioBloqueadoPorFactura extends Error {}
 
 /**
  * Cambio manual desde el panel o desde la futura pantalla del trabajador.
@@ -194,6 +200,21 @@ export async function cambiarEstadoSolicitud(
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Con factura vigente solo se permite entregar lo ya cobrado; cualquier
+      // otro cambio (incluidas las correcciones) exige antes la rectificativa.
+      // Se bloquea la fila y se comprueba antes de escribir nada, para que la
+      // rectificativa y el cambio de estado no se crucen.
+      const esEntrega =
+        datos.estadoEsperado === "lista" && datos.estadoNuevo === "entregada";
+
+      if (!esEntrega) {
+        await bloquearEntidadEnTx(tx, { tipo: "solicitud", id: datos.requestId });
+
+        if (await tieneFacturaVigenteEnTx(tx, { tipo: "solicitud", id: datos.requestId })) {
+          throw new CambioBloqueadoPorFactura();
+        }
+      }
+
       const cambio = await aplicarCambioEstadoEnTx(tx, {
         requestId: datos.requestId,
         estadoEsperado: datos.estadoEsperado,
@@ -221,6 +242,10 @@ export async function cambiarEstadoSolicitud(
 
     return { ok: true };
   } catch (error) {
+    if (error instanceof CambioBloqueadoPorFactura) {
+      return { ok: false, motivo: "factura-vigente" };
+    }
+
     if (error instanceof CambioEstadoEnConflicto) {
       if (exigirCobro) {
         const actual = await prisma.serviceRequest.findUnique({

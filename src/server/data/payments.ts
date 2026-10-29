@@ -9,6 +9,7 @@ import {
   type MetodoPagoManual,
   type MotivoImporteInvalido,
 } from "@/lib/payments";
+import { emitirFacturaDeCobroEnTx } from "@/server/data/invoices";
 
 export type DatosRegistroCobro = {
   id: string;
@@ -77,7 +78,8 @@ function camposCobro(datos: DatosRegistroCobro, ahora: Date) {
 /**
  * Registro manual del cobro de un pedido. Es la única forma de pasar un pedido
  * a `pagado`: el `updateMany` condicional (pendiente, sin cobro y no vencido)
- * resuelve las carreras con otro registro, una cancelación o la caducidad.
+ * resuelve las carreras con otro registro, una cancelación o la caducidad. La
+ * factura se emite en la misma transacción.
  */
 export async function registrarCobroPedido(
   datos: DatosRegistroCobro,
@@ -110,17 +112,27 @@ export async function registrarCobroPedido(
     return importe;
   }
 
-  const actualizado = await prisma.order.updateMany({
-    where: {
-      id: datos.id,
-      status: "pendiente",
-      paidAt: null,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: ahora } }],
-    },
-    data: { status: "pagado", ...camposCobro(datos, ahora) },
+  const cobrado = await prisma.$transaction(async (tx) => {
+    const actualizado = await tx.order.updateMany({
+      where: {
+        id: datos.id,
+        status: "pendiente",
+        paidAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: ahora } }],
+      },
+      data: { status: "pagado", ...camposCobro(datos, ahora) },
+    });
+
+    if (actualizado.count === 0) {
+      return false;
+    }
+
+    await emitirFacturaDeCobroEnTx(tx, { tipo: "pedido", id: datos.id }, ahora);
+
+    return true;
   });
 
-  if (actualizado.count > 0) {
+  if (cobrado) {
     return { ok: true };
   }
 
@@ -157,7 +169,8 @@ function motivoPedidoNoCobrable(
  * Registro manual del cobro de una solicitud: la reparación en `lista` o el
  * diagnóstico en `rechazada`/`expirada`. No cambia el estado; el condicional
  * sobre estado y `paidAt` evita cobrar dos veces o cobrar algo que acaba de
- * cambiar. Cobrar una reparación en curso cuenta como actividad.
+ * cambiar. Cobrar una reparación en curso cuenta como actividad. La factura se
+ * emite en la misma transacción.
  */
 export async function registrarCobroSolicitud(
   datos: DatosRegistroCobro,
@@ -209,15 +222,25 @@ export async function registrarCobroSolicitud(
   }
 
   const estado: ServiceStatus = solicitud.status;
-  const actualizado = await prisma.serviceRequest.updateMany({
-    where: { id: datos.id, status: estado, paidAt: null },
-    data: {
-      ...camposCobro(datos, ahora),
-      ...(esperado.concepto === "reparacion" ? { lastActivityAt: ahora } : {}),
-    },
+  const cobrado = await prisma.$transaction(async (tx) => {
+    const actualizado = await tx.serviceRequest.updateMany({
+      where: { id: datos.id, status: estado, paidAt: null },
+      data: {
+        ...camposCobro(datos, ahora),
+        ...(esperado.concepto === "reparacion" ? { lastActivityAt: ahora } : {}),
+      },
+    });
+
+    if (actualizado.count === 0) {
+      return false;
+    }
+
+    await emitirFacturaDeCobroEnTx(tx, { tipo: "solicitud", id: datos.id }, ahora);
+
+    return true;
   });
 
-  if (actualizado.count > 0) {
+  if (cobrado) {
     return { ok: true };
   }
 

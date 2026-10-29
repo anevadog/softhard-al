@@ -23,6 +23,7 @@ export function StatusForm({
   role,
   tienePresupuesto,
   entregaRequierePago = false,
+  facturaVigente = false,
 }: {
   requestId: string;
   status: ServiceStatus;
@@ -30,6 +31,8 @@ export function StatusForm({
   tienePresupuesto: boolean;
   /** Hay importe que cobrar y no hay cobro: "Entregada" sale deshabilitada. */
   entregaRequierePago?: boolean;
+  /** Con factura vigente solo se permite entregar; el resto exige rectificar antes. */
+  facturaVigente?: boolean;
 }) {
   const [state, setState] = useState<FormState>(FORM_STATE_INICIAL);
   const [pending, startTransition] = useTransition();
@@ -57,14 +60,15 @@ export function StatusForm({
 
   // La UI no es la seguridad: el servidor rechaza igualmente entregar sin cobro.
   const bloqueada = (estado: ServiceStatus) =>
-    entregaRequierePago && estado === "entregada";
+    (entregaRequierePago && estado === "entregada") ||
+    (facturaVigente && estado !== "entregada");
   const seleccionables = opciones.filter((opcion) => !bloqueada(opcion.estado));
 
   // Si el único paso normal era entregar y está bloqueado, no se preselecciona
   // ninguna corrección: hay que elegirla a propósito.
   const opcionInicial =
     seleccionables.find((opcion) => !opcion.requiereMotivo) ??
-    (entregaRequierePago ? undefined : seleccionables[0]);
+    (entregaRequierePago || facturaVigente ? undefined : seleccionables[0]);
 
   const [estadoNuevo, setEstadoNuevo] = useState<ServiceStatus | "">(
     opcionInicial?.estado ?? "",
@@ -117,16 +121,31 @@ export function StatusForm({
               key={opcion.estado}
               value={opcion.estado}
               disabled={bloqueada(opcion.estado)}
-              title={bloqueada(opcion.estado) ? "Requiere pago" : undefined}
+              title={
+                bloqueada(opcion.estado)
+                  ? opcion.estado === "entregada"
+                    ? "Requiere pago"
+                    : "Tiene factura vigente"
+                  : undefined
+              }
             >
               {SERVICE_STATUS_META[opcion.estado].label}
-              {bloqueada(opcion.estado) ? " (requiere pago)" : ""}
+              {bloqueada(opcion.estado)
+                ? opcion.estado === "entregada"
+                  ? " (requiere pago)"
+                  : " (factura vigente)"
+                : ""}
             </option>
           ))}
         </select>
         {entregaRequierePago && opciones.some((opcion) => opcion.estado === "entregada") ? (
           <p className="mt-1 text-xs text-amber-700" title="Requiere pago">
             Para entregar, registra antes el pago en la sección Cobro.
+          </p>
+        ) : null}
+        {facturaVigente ? (
+          <p className="mt-1 text-xs text-amber-700">
+            Tiene factura vigente: emite antes la rectificativa para corregir el estado.
           </p>
         ) : null}
       </div>

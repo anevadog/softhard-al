@@ -101,6 +101,9 @@ model User {
   passwordHash String
   name         String
   phone        String?
+  /// NIF/NIE/CIF opcional, normalizado. Con NIF la factura es completa; sin él,
+  /// simplificada. Lo edita el propio cliente en /app/perfil.
+  nif          String?
   role         Role     @default(cliente)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -119,6 +122,8 @@ model User {
   editedWorkLogs       WorkLog[]                  @relation("WorkLogEditor")
   requestNotes         RequestNote[]              @relation("RequestNoteAuthor")
   resolvedRequestNotes RequestNote[]              @relation("RequestNoteResolver")
+  invoices             Invoice[]                  @relation("InvoiceCustomer")
+  issuedInvoices       Invoice[]                  @relation("InvoiceIssuedBy")
 
   @@index([role])
   @@map("users")
@@ -166,6 +171,7 @@ model ServiceRequest {
   paidBy        User?     @relation("RequestPaidBy", fields: [paidById], references: [id], onDelete: Restrict)
   paymentNote   String?
 
+  invoices          Invoice[]
   statusHistory     ServiceStatusHistory[]
   assignmentHistory ServiceAssignmentHistory[]
   workLogs          WorkLog[]
@@ -364,6 +370,7 @@ model Order {
   paidBy        User?     @relation("OrderPaidBy", fields: [paidById], references: [id], onDelete: Restrict)
   paymentNote   String?
 
+  invoices       Invoice[]
   items          OrderItem[]
   stockMovements StockMovement[]
 
@@ -447,7 +454,135 @@ model Config {
   inactiveRequestHours Int      @default(48)
   openWorkLogHours     Int      @default(8)
   pendingOrderHours    Int      @default(48)
+  /// Tipo de IVA en %. Se copia en cada factura al emitirla.
+  vatRate              Decimal  @default(21) @db.Decimal(5, 2)
   updatedAt            DateTime @updatedAt
 
   @@map("config")
+}
+
+/// Serie de facturación. Cada una tiene su numeración correlativa por año.
+enum InvoiceSeries {
+  FAC
+  RECT
+  MIG
+}
+
+enum InvoiceKind {
+  ordinaria
+  rectificativa
+}
+
+/// Concepto de la factura; clasifica los ingresos del dashboard.
+enum InvoiceConcept {
+  venta
+  reparacion
+  diagnostico
+}
+
+enum InvoiceMode {
+  simplificada
+  completa
+}
+
+/// Factura simulada (sin validez fiscal). Inmutable: un trigger SQL impide
+/// UPDATE y DELETE en `invoices` e `invoice_lines`. Los importes son PVP con
+/// IVA incluido; el desglose se calcula línea a línea en céntimos
+/// (`lib/vat.ts`). Las rectificativas (`RECT`) llevan importes negativos y
+/// apuntan a la factura que anulan; las re-emisiones (`FAC`) apuntan a la
+/// rectificada a la que sustituyen. Checks e índices parciales en SQL manual.
+model Invoice {
+  id     String        @id @default(cuid())
+  series InvoiceSeries
+  year   Int
+  number Int
+  /// `<SERIE>-YYYY-NNNN`.
+  code   String        @unique
+
+  kind       InvoiceKind
+  concept    InvoiceConcept
+  mode       InvoiceMode
+  issuedAt   DateTime       @default(now())
+  isBackfill Boolean        @default(false)
+
+  orderId   String?
+  order     Order?          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  requestId String?
+  request   ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  rectifiesInvoiceId String?
+  rectifies          Invoice?  @relation("InvoiceRectification", fields: [rectifiesInvoiceId], references: [id], onDelete: Restrict)
+  rectifications     Invoice[] @relation("InvoiceRectification")
+  /// Motivo de la rectificativa.
+  reason             String?
+
+  replacesInvoiceId String?
+  replaces          Invoice?  @relation("InvoiceReplacement", fields: [replacesInvoiceId], references: [id], onDelete: Restrict)
+  replacements      Invoice[] @relation("InvoiceReplacement")
+  /// Motivo de la re-emisión (10–200 caracteres).
+  reissueReason     String?
+
+  /// Staff que emitió la rectificativa o la re-emisión; nulo en las emitidas
+  /// al cobrar (el autor del cobro está en la entidad) y en las retroactivas.
+  issuedById String?
+  issuedBy   User?   @relation("InvoiceIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
+
+  /// Cliente (para filtrar por propietario) y snapshot de sus datos.
+  customerId      String
+  customer        User    @relation("InvoiceCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  customerName    String
+  customerEmail   String
+  customerTaxId   String?
+  customerAddress String?
+
+  issuerName    String
+  issuerTaxId   String
+  issuerAddress String
+  issuerEmail   String
+
+  vatRate       Decimal @db.Decimal(5, 2)
+  baseTotal     Decimal @db.Decimal(10, 2)
+  vatTotal      Decimal @db.Decimal(10, 2)
+  total         Decimal @db.Decimal(10, 2)
+  paymentMethod String?
+
+  lines InvoiceLine[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([series, year, number])
+  @@index([issuedAt])
+  @@index([concept, issuedAt])
+  @@index([orderId])
+  @@index([requestId])
+  @@index([customerId, issuedAt])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  position    Int
+  description String
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(10, 2)
+  lineTotal   Decimal @db.Decimal(10, 2)
+  lineBase    Decimal @db.Decimal(10, 2)
+  lineVat     Decimal @db.Decimal(10, 2)
+
+  @@unique([invoiceId, position])
+  @@map("invoice_lines")
+}
+
+/// Último número emitido por serie y año. Se incrementa con un upsert atómico
+/// en la misma transacción que crea la factura: sin huecos.
+model InvoiceCounter {
+  series     InvoiceSeries
+  year       Int
+  lastNumber Int           @default(0)
+
+  @@id([series, year])
+  @@map("invoice_counters")
 }

@@ -15,6 +15,12 @@ import { cambiarEstadoSolicitud } from "@/server/data/service-status";
 
 function crearTx() {
   return {
+    // Bloqueo de fila (SELECT … FOR UPDATE) antes de comprobar facturas.
+    $queryRaw: vi.fn().mockResolvedValue([{ id: "fila" }]),
+    // Sin facturas: ningún bloqueo por factura vigente.
+    invoice: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     serviceRequest: {
       updateMany: vi.fn(),
     },

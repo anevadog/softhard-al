@@ -7,6 +7,8 @@ import { QuoteForm } from "@/components/admin/quote-form";
 import { StatusForm } from "@/components/admin/status-form";
 import { ResolveNoteForm } from "@/components/admin/resolve-note-form";
 import { StaffWorkLogActions } from "@/components/admin/work-log-staff-actions";
+import { InvoiceChain } from "@/components/invoices/invoice-chain";
+import { ReissueInvoiceForm } from "@/components/invoices/invoice-forms";
 import { PaymentSummary } from "@/components/payments/payment-summary";
 import { RegisterPaymentForm } from "@/components/payments/register-payment-form";
 import { QuoteSummary } from "@/components/service-requests/quote-summary";
@@ -21,6 +23,7 @@ import {
   MODALITY_LABELS,
   TIME_SLOT_LABELS,
 } from "@/lib/service-requests";
+import { facturaVigente, puedeReemitir } from "@/lib/invoices";
 import { cobroEsperadoSolicitud, exigeCobroParaEntregar } from "@/lib/payments";
 import { esEstadoFinal } from "@/lib/service-status";
 import {
@@ -28,6 +31,7 @@ import {
   obtenerSolicitudAdmin,
 } from "@/server/data/admin-requests";
 import { listarTrabajadoresAsignables } from "@/server/data/assignments";
+import { listarFacturasDeEntidad } from "@/server/data/invoices";
 import { esFaltaPendiente } from "@/lib/request-notes";
 import { listarNotasReparacion } from "@/server/data/request-notes";
 import { listarFichajesReparacion } from "@/server/data/work-logs";
@@ -64,10 +68,17 @@ export default async function AdminSolicitudPage({
   const trabajadores = esEstadoFinal(solicitud.status)
     ? []
     : await listarTrabajadoresAsignables();
-  const [fichajes, notas] = await Promise.all([
+  const [fichajes, notas, facturas] = await Promise.all([
     listarFichajesReparacion(solicitud.id),
     listarNotasReparacion(solicitud.id),
+    listarFacturasDeEntidad({ tipo: "solicitud", id: solicitud.id }),
   ]);
+  const hayFacturaVigente = facturaVigente(facturas) !== null;
+  const reemitible = puedeReemitir({
+    pagada: solicitud.cobro !== null,
+    status: solicitud.status,
+    facturas,
+  });
   const ahora = new Date();
   const cobroPendiente = solicitud.cobro
     ? null
@@ -242,6 +253,7 @@ export default async function AdminSolicitudPage({
                 role={staff.role}
                 tienePresupuesto={Boolean(solicitud.quote)}
                 entregaRequierePago={entregaRequierePago}
+                facturaVigente={hayFacturaVigente}
               />
             </div>
           </section>
@@ -261,6 +273,20 @@ export default async function AdminSolicitudPage({
                     importeEsperado={cobroPendiente.importe}
                     puedeEditarImporte={staff.role === "admin"}
                   />
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {facturas.length > 0 || reemitible ? (
+            <section className="rounded-xl border border-slate-200 bg-white p-6">
+              <h2 className="text-base font-semibold text-slate-900">Facturas</h2>
+              <div className="mt-3">
+                <InvoiceChain facturas={facturas} rutaFacturas="/admin/facturas" />
+                {reemitible ? (
+                  <div className="mt-4">
+                    <ReissueInvoiceForm entidad="solicitud" id={solicitud.id} />
+                  </div>
                 ) : null}
               </div>
             </section>
