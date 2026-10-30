@@ -67,10 +67,11 @@ SoftHard A&L es una aplicación full stack que cubre el ciclo completo de una re
 4. El cliente acepta o rechaza el presupuesto dentro del plazo y ve el importe final que le corresponde.
 5. El taller asigna la reparación a un trabajador, que la sigue desde `/trabajador`: cambia su estado, ficha su tiempo, deja notas o avisa de que falta una pieza hasta dejarla lista para entregar.
 6. El encargado vigila el taller: reparaciones sin actividad, devueltas, faltas de repuesto, fichajes y horas por trabajador y por reparación.
+7. El cliente paga la reparación lista o su pedido (en el taller o con la pasarela simulada) y recibe una factura; el encargado sigue los ingresos en un dashboard y los exporta a CSV.
 
-La Fase 2 está completada: catálogo público, ficha de producto, panel interno de productos, carrito local, checkout con historial de pedidos, gestión administrativa de pedidos y libro de stock con ajustes e historial.
+Además de las reparaciones, la tienda tiene catálogo público, carrito local, checkout con historial de pedidos, gestión administrativa de pedidos y libro de stock.
 
-La Fase 3 (taller interno) está completada: asignación, panel del trabajador, fichaje, notas y faltas de repuesto, avisos de reparaciones sin actividad y reportes del encargado.
+Las cinco fases están completadas: servicio técnico (1), tienda (2), taller interno (3), cobros, facturas e ingresos (4) y CI, emails transaccionales y pasarela de pago simulada (5).
 
 ## Funcionalidad
 
@@ -117,8 +118,8 @@ La Fase 3 (taller interno) está completada: asignación, panel del trabajador, 
 - Ajuste manual de stock solo para `encargado` y `admin`, con motivo, variación, nota, vista previa y rechazo de stock negativo. Historial de los últimos 10 movimientos en la ficha del producto.
 - Panel `/admin/pedidos` con filtro por estado, contadores, cliente, fecha, total y estado; detalle con líneas a precio congelado y total.
 - Transiciones `pendiente → pagado | cancelado` y `pagado → entregado | cancelado`, aplicadas con actualización condicional sobre el estado esperado.
-- Cancelación transaccional: repone todas las líneas (también archivadas), crea un movimiento positivo por línea y no repone dos veces. Cancelar un pedido pagado exige motivo y avisa de que no hay reembolso.
-- Los pedidos nacen en estado `pendiente`; «pagado» se marca a mano porque no hay pasarela de pago.
+- Cancelación transaccional: repone todas las líneas (también archivadas), crea un movimiento positivo por línea y no repone dos veces. Cancelar un pedido pagado exige motivo; si se cobró con la pasarela (Fase 5.3), se reembolsa.
+- Los pedidos nacen en estado `pendiente`. Desde la Fase 4.0 solo pasan a `pagado` al registrar el cobro (manual o con la pasarela), y desde la deuda previa a la Fase 4 caducan a las 48 h sin pago.
 
 ### Fase 3: taller interno (completada)
 
@@ -223,10 +224,11 @@ createdb softhard
 ```
 
 ```bash
-# 5. Aplica migraciones y genera el cliente de Prisma
-npx prisma migrate dev
+# 5. Genera el cliente de Prisma y aplica las migraciones
+npx prisma generate
+npx prisma migrate deploy
 
-# 6. Carga la configuración, los usuarios y los productos de demostración
+# 6. Carga la configuración, los usuarios, los productos y el histórico de demostración
 npx prisma db seed
 
 # 7. Arranca el servidor de desarrollo
@@ -272,16 +274,17 @@ npm run start
 
 ## Usuarios de prueba
 
-El seed es idempotente y crea cuatro cuentas con la misma contraseña: **`Demo1234!`**
+El seed es idempotente (solo crea lo que falta; lo que ya existe no se toca) y solo se ejecuta contra una base local. Crea estas cuentas, todas con la misma contraseña: **`Demo1234!`**
 
 | Email | Rol | Acceso |
 |---|---|---|
-| `cliente@demo.local` | cliente | `/app` |
+| `cliente@demo.local` | cliente | `/app` (solicitudes, pedidos, facturas, perfil y pago online) |
+| `cliente2@demo.local` … `cliente6@demo.local` | cliente | `/app`; son los clientes del histórico de 12 meses |
 | `trabajador@demo.local` | trabajador | `/trabajador` (sus reparaciones, las de tomar, fichaje, notas y su historial de fichajes) y `/app`; sin acceso al panel |
-| `encargado@demo.local` | encargado | `/admin` (solicitudes, asignaciones, notas, fichajes, reportes, pedidos, productos y stock) y `/trabajador` |
-| `admin@demo.local` | admin | `/admin` (solicitudes, asignaciones, notas, fichajes, reportes, pedidos, productos y stock) y `/trabajador` |
+| `encargado@demo.local` | encargado | `/admin` (solicitudes, asignaciones, notas, fichajes, reportes, pedidos, productos, stock, cobros, facturas, dashboard, exportación y emails) y `/trabajador` |
+| `admin@demo.local` | admin | Igual que `encargado` |
 
-En el panel, `admin` y `encargado` comparten permisos. Solo el rol `trabajador` ficha. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico, **7 días** de validez del presupuesto, aviso a las **48 h** sin actividad y fichaje abierto a las **8 h**) y seis productos de demostración para el catálogo. No crea solicitudes de reparación.
+En el panel, `admin` y `encargado` comparten permisos. Solo el rol `trabajador` ficha. El seed también crea la configuración de negocio (**30 €** de tarifa de diagnóstico, **7 días** de validez del presupuesto, aviso a las **48 h** sin actividad, fichaje abierto a las **8 h**, caducidad de pedidos a las **48 h** e IVA del **21 %**), seis productos de demostración y un histórico determinista de 12 meses: 47 reparaciones, 21 pedidos y sus 56 facturas (FAC, RECT y MIG), con fechas relativas al día en que se ejecuta.
 
 ## Scripts
 
@@ -295,13 +298,15 @@ En el panel, `admin` y `encargado` comparten permisos. Solo el rol `trabajador` 
 | `npm run test` | Ejecuta la suite de Vitest una vez |
 | `npm run test:watch` | Vitest en modo vigilancia |
 | `npm run test:integration` | Tests de integración contra PostgreSQL real (base `softhard_test`) |
+| `npm run worker:emails` | Worker que envía los emails pendientes de la cola `pending_emails` |
 
 Comandos de base de datos:
 
 ```bash
-npx prisma migrate dev   # aplica migraciones en desarrollo
-npx prisma db seed       # carga configuración, usuarios y productos demo
-npx prisma studio        # explora la base de datos
+npx prisma migrate deploy                        # aplica las migraciones pendientes
+npx prisma migrate dev --create-only --name <n>  # genera una migración nueva sin aplicarla (revisa el SQL antes)
+npx prisma db seed                               # carga configuración, usuarios, productos e histórico demo
+npx prisma studio                                # explora la base de datos
 ```
 
 ## Estructura del proyecto
@@ -311,17 +316,20 @@ src/
   app/
     (public)/              landing, catálogo y carrito
     (auth)/                login y registro
-    app/                   área del cliente (solicitudes y pedidos)
-    admin/                 panel interno (solicitudes, fichajes, reportes, pedidos y productos)
+    app/                   área del cliente (solicitudes, pedidos, facturas y perfil)
+    admin/                 panel interno (solicitudes, fichajes, reportes, pedidos, productos, facturas, dashboard, emails y exportar/*.csv)
     trabajador/            área de taller (mis reparaciones, detalle y mis fichajes)
+    pago/mock/             página de la pasarela de pago simulada
     api/auth/              handler de Auth.js
   components/
     site/                  landing, cabecera y catálogo público
     cart/                  provider, contador y vista del carrito
     orders/                badge de estado de pedido
     service-requests/      solicitudes, presupuestos y decisión
-    admin/                 solicitudes, asignación, fichajes, notas, avisos, pedidos, productos y stock
+    admin/                 solicitudes, asignación, fichajes, notas, avisos, pedidos, productos, stock, dashboard y exportación
     taller/                tarjetas, fichaje, notas, avisos e historiales del área de taller
+    payments/              registro de cobro manual, resumen del cobro y botón de pago online
+    invoices/              documento de factura, cadena de rectificativas, formularios y NIF
   lib/
     auth.ts, authz.ts      autenticación y permisos
     navigation.ts          callback interno seguro tras login/registro
@@ -338,17 +346,30 @@ src/
     products.ts            categorías y tipos del catálogo
     catalog.ts             filtros y textos de stock del catálogo público
     cart.ts                persistencia, stock e importes del carrito
+    login-rate-limit.ts    política de intentos de inicio de sesión
+    payments.ts            reglas puras de cobro
+    vat.ts, invoices.ts    desglose de IVA y contenido de las facturas
+    nif.ts                 validación del NIF
+    dashboard.ts           periodos y agregados del dashboard de ingresos
+    csv.ts                 generación de CSV para Excel en español
+    email-templates.ts     plantillas de los emails transaccionales
+    seed-dates.ts          fechas relativas del histórico del seed
     validations/           esquemas Zod
   server/
     authorization.ts       guards requerirStaff y requerirPersonalTaller (rol revalidado en BD)
-    actions/               Server Actions (mutaciones, carrito, checkout, panel, stock y taller)
-    data/                  acceso a datos con control de propiedad y de responsable
+    actions/               Server Actions (mutaciones, carrito, checkout, panel, stock, taller, cobros, facturas, pagos y emails)
+    data/                  acceso a datos con control de propiedad y de responsable (también cobros, facturas, dashboard, emails y pasarela)
+    exports/               respuestas CSV de las rutas de exportación (permisos, filtros y tope de filas)
+    providers/             proveedores de email (console, Mailpit) y de pago (mock)
+    seed/                  datos demo y histórico de 12 meses
+scripts/worker-emails.ts   worker de la cola de emails
 prisma/
   schema.prisma
   migrations/
-  seed.ts
+  seed.ts                  entrada del seed (todo en una transacción)
 public/productos/          placeholder de producto
-docs/specs/               especificaciones de las fases 1, 2 y 3
+docs/specs/               especificaciones por fase
+.github/workflows/ci.yml   integración continua
 ```
 
 ## Decisiones de arquitectura
@@ -468,7 +489,7 @@ pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso
 
 La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: reglas de importes, transiciones de estado, expiración, validaciones Zod y permisos básicos.
 
-- **609 tests unitarios** en 70 archivos (`npm run test`, sin base de datos), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, reportes, límite de intentos de login y dirección de recogida. La capa de datos se prueba con Prisma mockeado.
+- **609 tests unitarios** en 70 archivos (`npm run test`, sin base de datos), incluidos validación, acciones, filtros del catálogo, carrito, cálculo de pedidos, conflictos de stock, idempotencia, edición sin stock, ajustes manuales, historial, transiciones de pedidos y de reparaciones, asignación, toma y devolución, visibilidad del panel del trabajador, fichaje, notas, avisos de inactividad, semanas y cambios de hora, reportes, límite de intentos de login, dirección de recogida, cobros, IVA y facturas, NIF, dashboard, CSV, plantillas y proveedores de email, pasarela simulada y fechas del seed. La capa de datos se prueba con Prisma mockeado.
 - **106 tests de integración** (`npm run test:integration`) contra PostgreSQL real: índices únicos parciales y checks, filtros por relación en `updateMany`, cambio de hora en los reportes, límite de login, privacidad del cliente, checkout, caducidad, cobros, facturas (también las retroactivas frente a `lib/vat.ts`), dashboard, CSV, emails y pasarela. Los de concurrencia real (`*.concurrencia.int.test.ts`) usan conexiones separadas y limpian por prefijo. Usan una base aparte, `<base>_test`, derivada de `DATABASE_URL` (solo hosts locales); cada test va en una transacción que se revierte, y antes se aplican las migraciones con `prisma migrate deploy`. La base se crea una vez:
 
   ```bash
@@ -554,26 +575,30 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 
 ## Fuera de alcance
 
-Estas funciones quedan fuera del alcance actual (ver también la spec de la Fase 3):
+Estas funciones quedan fuera del alcance actual (ver también las specs de cada fase):
 
-- Pagos reales, pasarela de pago, reembolsos y facturación.
+- Pagos reales: la pasarela es simulada (proveedor `mock`) y no hay cobros ni reembolsos de verdad.
+- Validez fiscal real de las facturas (Verifactu, TicketBAI, SII), firma y QR: son facturas simuladas.
+- Pago por adelantado del diagnóstico (`requireDiagnosticPaymentUpfront` solo está modelado).
 - Historial de estados de pedido.
 - Integración del catálogo con el área de cliente (recomendaciones o personalización).
-- Reserva de stock al añadir al carrito o liberación automática de pedidos pendientes.
+- Reserva de stock al añadir al carrito (los pedidos pendientes sí caducan a las 48 h y liberan su stock).
 - Sincronización del carrito con la cuenta al iniciar sesión.
-- Cupones, envíos e impuestos.
+- Cupones y envíos.
 - Tickets internos e inventario de repuestos.
 - Pausas, aprobación de horas y nóminas.
 - Contabilidad.
-- Emails automáticos y notificaciones push.
+- Emails más allá de los tres transaccionales, envío real con un proveedor en producción y notificaciones push.
 - Historial completo de correcciones de fichajes y control de solapes tras una corrección: solo se guarda el último editor (deuda anotada).
-- Rate limiting en el login (deuda técnica anotada).
 
 ## Documentación
 
 - [`docs/specs/fase-1.md`](docs/specs/fase-1.md) — objetivos, historias de usuario y criterios de aceptación de la Fase 1.
 - [`docs/specs/fase-2.md`](docs/specs/fase-2.md) — alcance del catálogo, el carrito, el checkout y criterios de la Fase 2.
 - [`docs/specs/fase-3.md`](docs/specs/fase-3.md) — taller interno: estados, asignación, fichaje, notas, avisos, vistas, sub-fases y criterios de la Fase 3.
+- [`docs/specs/deuda-fase4.md`](docs/specs/deuda-fase4.md) — caducidad de pedidos pendientes y tests de integración del checkout.
+- [`docs/specs/fase-4.md`](docs/specs/fase-4.md) — cobros, facturación simulada, seed histórico, dashboard de ingresos y exportación a CSV.
+- [`docs/specs/fase-5.md`](docs/specs/fase-5.md) — CI, emails transaccionales con outbox y pasarela de pago simulada.
 - [`AGENTS.md`](AGENTS.md) — convenciones y reglas de trabajo del repositorio.
 - [`memory.md`](memory.md) — estado y notas de continuidad del proyecto.
 
