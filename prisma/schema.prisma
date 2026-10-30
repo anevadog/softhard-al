@@ -586,3 +586,46 @@ model InvoiceCounter {
   @@id([series, year])
   @@map("invoice_counters")
 }
+
+/// Evento que envía un email transaccional (5.2). Solo estos tres.
+enum EmailEvent {
+  pedido_confirmado
+  presupuesto_listo
+  reparacion_lista
+}
+
+enum EmailStatus {
+  pendiente
+  enviando
+  enviado
+  fallido
+}
+
+/// Transactional Outbox de emails: la fila se crea en la misma transacción
+/// que el evento y la envía un worker (`procesarEmailsPendientes`). Un evento
+/// encola como mucho un email por entidad (`@@unique([event, entityId])`).
+/// `entityId` es el pedido o la solicitud; no es FK para que el email no
+/// dependa del ciclo de vida de la entidad.
+model PendingEmail {
+  id        String      @id @default(cuid())
+  event     EmailEvent
+  entityId  String
+  /// Destinatario, asunto y cuerpos ya renderizados al encolar.
+  to        String
+  subject   String
+  text      String      @db.Text
+  html      String      @db.Text
+  status    EmailStatus @default(pendiente)
+  attempts  Int         @default(0)
+  lastError String?
+  /// Momento en que un worker reclamó la fila; si lleva más de 5 min en
+  /// `enviando`, otro worker la puede volver a reclamar.
+  lockedAt  DateTime?
+  sentAt    DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([event, entityId])
+  @@index([status, createdAt])
+  @@map("pending_emails")
+}

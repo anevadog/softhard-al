@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/server/email-dispatch", () => ({
+  programarEnvioEmails: vi.fn(),
+}));
+
 vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
 }));

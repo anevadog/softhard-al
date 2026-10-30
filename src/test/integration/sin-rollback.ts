@@ -106,6 +106,9 @@ async function limpiar(db: PrismaClient, prefijo: string): Promise<void> {
   const usuarios = { email: { startsWith: `${prefijo}-` } };
   const productos = { name: { startsWith: `${prefijo} ` } };
 
+  const emails = { to: { startsWith: `${prefijo}-` } };
+
+  await db.pendingEmail.deleteMany({ where: emails });
   await db.stockMovement.deleteMany({ where: { product: productos } });
   // Las facturas son inmutables: el trigger solo deja borrarlas en una
   // transacción que lo pida con SET LOCAL (y solo esta limpieza lo hace). Se
@@ -137,7 +140,8 @@ async function limpiar(db: PrismaClient, prefijo: string): Promise<void> {
     (await db.product.count({ where: productos })) +
     (await db.order.count({ where: { user: usuarios } })) +
     (await db.serviceRequest.count({ where: { client: usuarios } })) +
-    (await db.invoice.count({ where: { customer: usuarios } }));
+    (await db.invoice.count({ where: { customer: usuarios } })) +
+    (await db.pendingEmail.count({ where: emails }));
 
   if (residuos > 0) {
     throw new Error(`sinRollback: quedan ${residuos} filas con el prefijo ${prefijo}.`);

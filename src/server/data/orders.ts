@@ -8,6 +8,7 @@ import {
   type PedidoDetalle,
   type PedidoResumen,
 } from "@/lib/orders";
+import { encolarPedidoConfirmadoEnTx } from "@/server/data/emails";
 import {
   crearMovimientosCaducidad,
   crearMovimientosVenta,
@@ -213,6 +214,8 @@ export async function crearPedidoCliente(
       });
 
       await crearMovimientosVenta(tx, pedido.id, preparado.lineas);
+      // "Pedido confirmado" en la misma transacción: si se revierte, no hay email.
+      await encolarPedidoConfirmadoEnTx(tx, pedido.id);
 
       return { ok: true, pedidoId: pedido.id };
     });

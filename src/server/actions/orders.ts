@@ -13,6 +13,7 @@ import {
   crearPedidoCliente,
   type ResultadoCrearPedido,
 } from "@/server/data/orders";
+import { programarEnvioEmails } from "@/server/email-dispatch";
 
 function mensajeDeError(motivo: MotivoPedidoInvalido): string {
   switch (motivo) {
@@ -88,6 +89,7 @@ export async function finalizarCompraAction(
 
   revalidarCatalogo();
   revalidatePath("/app/pedidos");
+  programarEnvioEmails();
 
   return { ok: true, pedidoId: resultado.pedidoId };
 }

@@ -6,6 +6,7 @@ import {
   type SolicitudAdminDetalle,
   type SolicitudAdminResumen,
 } from "@/lib/service-requests";
+import { encolarPresupuestoListoEnTx } from "@/server/data/emails";
 import { cobroDesdeFila, SELECT_COBRO } from "@/server/data/payments";
 import { aplicarCambioEstadoEnTx } from "@/server/data/service-status";
 
@@ -258,6 +259,9 @@ export async function crearPresupuesto(
           data: { lastActivityAt: ahora },
         });
       }
+
+      // "Presupuesto listo" en la misma transacción que el presupuesto.
+      await encolarPresupuestoListoEnTx(tx, datos.requestId);
 
       return { ok: true as const, quoteId: quote.id };
     });

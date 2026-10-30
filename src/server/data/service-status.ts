@@ -7,6 +7,7 @@ import {
   type MotivoTransicionInvalida,
   type RolTaller,
 } from "@/lib/service-status";
+import { encolarReparacionListaEnTx } from "@/server/data/emails";
 import {
   bloquearEntidadEnTx,
   tieneFacturaVigenteEnTx,
@@ -93,6 +94,12 @@ export async function aplicarCambioEstadoEnTx(
       reason: datos.reason,
     },
   });
+
+  // "Reparación lista" en la misma transacción que la transición. Si la
+  // solicitud vuelve a `lista` tras una corrección, el único evita repetirlo.
+  if (datos.estadoNuevo === "lista") {
+    await encolarReparacionListaEnTx(tx, datos.requestId);
+  }
 
   return { ok: true };
 }
