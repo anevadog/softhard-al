@@ -1,9 +1,9 @@
 # Spec Fase 4 — Cobros, datos y contabilidad
 
-**Estado:** implementada. Hechas 4.0 (`a64bc0c`), 4.3a (`d9c708e`) y 4.3b: las
-retroactivas `MIG` (`acfb311`, migración `20261029101854_facturas_retroactivas`,
+**Estado:** implementada. Hechas 4.0 (`67cb0a3`), 4.3a (`ed926e8`) y 4.3b: las
+retroactivas `MIG` (`eea6ded`, migración `20261029101854_facturas_retroactivas`,
 aparte de la de 4.3a porque esa ya estaba aplicada) y el seed histórico
-(`596f969`, `src/server/seed/`), 4.1 (`9e031d0`, `/admin/dashboard`) y 4.2 (`ffea3e8`, `/admin/exportar/*.csv`). Requiere la deuda previa
+(`a174bc8`, `src/server/seed/`), 4.1 (`ea4cf3e`, `/admin/dashboard`) y 4.2 (`c12137a`, `/admin/exportar/*.csv`). Requiere la deuda previa
 (`deuda-fase4.md`), ya cerrada.
 
 ## Objetivo

@@ -4,6 +4,10 @@ import {
   bloquearEntidadEnTx,
   tieneFacturaVigenteEnTx,
 } from "@/server/data/invoices";
+import {
+  ejecutarReembolsos,
+  marcarReembolsoPorCancelacionEnTx,
+} from "@/server/data/online-payments";
 import { cobroDesdeFila, SELECT_COBRO } from "@/server/data/payments";
 import {
   ORDER_STATUSES,
@@ -148,7 +152,7 @@ export async function cambiarEstadoPedidoAdmin(
       : { ok: false, motivo: "conflicto" };
   }
 
-  return prisma.$transaction(async (tx) => {
+  const resultado = await prisma.$transaction(async (tx) => {
     // Un pedido con factura vigente no se cancela: primero la rectificativa.
     // Se bloquea la fila y se comprueba antes de escribir nada.
     await bloquearEntidadEnTx(tx, { tipo: "pedido", id: datos.orderId });
@@ -190,9 +194,23 @@ export async function cambiarEstadoPedidoAdmin(
       });
     }
 
+    // Cobrado por pasarela: la sesión se reembolsa (5.3). Los campos de cobro
+    // del pedido no se tocan; un cobro manual se devuelve fuera de la app.
+    const reembolsos = await marcarReembolsoPorCancelacionEnTx(tx, datos.orderId);
+
     return {
       ok: true as const,
       productIds: lineas.map((linea) => linea.productId),
+      reembolsos,
     };
   });
+
+  if (!resultado.ok) {
+    return resultado;
+  }
+
+  // La pasarela se llama una vez confirmada la cancelación.
+  await ejecutarReembolsos(resultado.reembolsos);
+
+  return { ok: true, productIds: resultado.productIds };
 }

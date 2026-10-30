@@ -6,6 +6,7 @@ import { QuoteDecision } from "@/components/service-requests/quote-decision";
 import { QuoteSummary } from "@/components/service-requests/quote-summary";
 import { StatusBadge } from "@/components/service-requests/status-badge";
 import { InvoiceChain } from "@/components/invoices/invoice-chain";
+import { OnlinePaymentButton, OnlinePaymentNotice } from "@/components/payments/online-payment";
 import { auth } from "@/lib/auth";
 import { formatearFechaCorta, formatEuros } from "@/lib/format";
 import { estaExpirado, puedeDecidir } from "@/lib/quotes";
@@ -15,7 +16,9 @@ import {
   TIME_SLOT_LABELS,
 } from "@/lib/service-requests";
 import { obtenerSolicitudCliente } from "@/server/data/service-requests";
+import { iniciarPagoSolicitudAction } from "@/server/actions/online-payments";
 import { listarFacturasDeEntidad } from "@/server/data/invoices";
+import { puedePagarOnline } from "@/server/data/online-payments";
 
 export const metadata = {
   title: "Detalle de solicitud",
@@ -26,7 +29,7 @@ export default async function SolicitudClientePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ decision?: string }>;
+  searchParams: Promise<{ decision?: string; pago?: string }>;
 }) {
   const session = await auth();
 
@@ -35,14 +38,17 @@ export default async function SolicitudClientePage({
   }
 
   const { id } = await params;
-  const { decision } = await searchParams;
+  const { decision, pago } = await searchParams;
   const solicitud = await obtenerSolicitudCliente(id, session.user.id);
 
   if (!solicitud) {
     notFound();
   }
 
-  const facturas = await listarFacturasDeEntidad({ tipo: "solicitud", id: solicitud.id });
+  const [facturas, pagable] = await Promise.all([
+    listarFacturasDeEntidad({ tipo: "solicitud", id: solicitud.id }),
+    puedePagarOnline({ tipo: "solicitud", id: solicitud.id }, session.user.id),
+  ]);
 
   const quote = solicitud.quote;
   const ahora = new Date();
@@ -73,6 +79,8 @@ export default async function SolicitudClientePage({
             : null}
         </p>
       </div>
+
+      <OnlinePaymentNotice pago={pago} />
 
       {decision === "aceptada" ? (
         <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
@@ -190,6 +198,14 @@ export default async function SolicitudClientePage({
                       : formatEuros(quote.finalAmount)}
                     .
                   </Aviso>
+                ) : null}
+
+                {pagable && quote.finalAmount !== null ? (
+                  <OnlinePaymentButton
+                    accion={iniciarPagoSolicitudAction}
+                    id={solicitud.id}
+                    importe={quote.finalAmount}
+                  />
                 ) : null}
 
                 {quote.status === "rechazado" ? (

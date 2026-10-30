@@ -1,6 +1,12 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// La pasarela (5.3) se prueba en integración; aquí no hay sesiones de pago.
+vi.mock("@/server/data/online-payments", () => ({
+  marcarReembolsoPorCancelacionEnTx: vi.fn().mockResolvedValue([]),
+  ejecutarReembolsos: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     $transaction: vi.fn(),

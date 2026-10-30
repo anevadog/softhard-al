@@ -24,5 +24,6 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: ["/app/:path*", "/admin/:path*", "/trabajador/:path*"],
+  // `/pago`: la pasarela simulada exige sesión (la propiedad se comprueba en la página).
+  matcher: ["/app/:path*", "/admin/:path*", "/trabajador/:path*", "/pago/:path*"],
 };
