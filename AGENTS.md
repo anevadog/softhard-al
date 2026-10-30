@@ -53,6 +53,7 @@ Proyecto de portfolio del dueño. Repo privado. Datos ficticios en demo.
 - Contraseñas con bcrypt. Nunca texto plano.
 - No instalar dependencias sin justificar.
 - No ejecutar `git commit` ni `git push` sin permiso explícito.
+- Commits y PRs sin atribución a la IA: nada de `Co-Authored-By`, "Generated with Claude Code" ni menciones a Claude o a otros asistentes. El autor es solo el dueño del repo.
 - No borrar archivos ni migraciones sin permiso.
 - Migraciones: generarlas con `--create-only`, revisar el SQL antes de aplicarlo y aplicarlas con `prisma migrate deploy`. Nunca modificar migraciones antiguas. Nada que reinicie o borre la BD sin permiso.
 - `npm run build` ejecuta `prisma migrate deploy`: comprobar antes que `DATABASE_URL` es local.
