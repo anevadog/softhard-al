@@ -232,12 +232,14 @@ export async function contenidoFacturaEnTx(
 
 /**
  * Factura ordinaria emitida al registrar el cobro, en la misma transacción.
- * `issuedAt` es el momento del cobro.
+ * `issuedAt` es el momento del cobro. El seed histórico emite con ella sus
+ * retroactivas (serie `MIG`, con ID fijo).
  */
 export async function emitirFacturaDeCobroEnTx(
   tx: Tx,
   entidad: EntidadFacturable,
   ahora: Date,
+  opciones: { serie?: "FAC" | "MIG"; id?: string } = {},
 ): Promise<{ id: string; code: string } | null> {
   const contenido = await contenidoFacturaEnTx(tx, entidad);
 
@@ -246,7 +248,8 @@ export async function emitirFacturaDeCobroEnTx(
   }
 
   return crearFacturaEnTx(tx, {
-    serie: "FAC",
+    id: opciones.id,
+    serie: opciones.serie ?? "FAC",
     kind: "ordinaria",
     concept: contenido.concept,
     issuedAt: ahora,
@@ -299,10 +302,78 @@ export type ResultadoRectificativa =
   | { ok: true; id: string; code: string }
   | { ok: false; motivo: "no-existe" | "no-vigente" };
 
-class SinCambios extends Error {
+/** Motivo por el que una rectificativa o una re-emisión no se hace. */
+export class SinCambios extends Error {
   constructor(public readonly motivo: string) {
     super(motivo);
   }
+}
+
+type DatosRectificativa = {
+  invoiceId: string;
+  motivo: string;
+  staffId: string;
+};
+
+/**
+ * Rectificativa dentro de una transacción ya abierta, emitida en `ahora`.
+ * Lanza `SinCambios` si la factura no existe o no es la vigente.
+ */
+export async function emitirRectificativaEnTx(
+  tx: Tx,
+  datos: DatosRectificativa,
+  ahora: Date,
+  id?: string,
+): Promise<{ id: string; code: string }> {
+  const original = await tx.invoice.findUnique({
+    where: { id: datos.invoiceId },
+    include: { lines: { orderBy: { position: "asc" } } },
+  });
+
+  if (!original) {
+    throw new SinCambios("no-existe");
+  }
+
+  const entidad: EntidadFacturable = original.orderId
+    ? { tipo: "pedido", id: original.orderId }
+    : { tipo: "solicitud", id: original.requestId as string };
+
+  await bloquearEntidadEnTx(tx, entidad);
+
+  const vigente = facturaVigente(await facturasDeEntidadEnTx(tx, entidad));
+
+  if (vigente?.id !== original.id) {
+    throw new SinCambios("no-vigente");
+  }
+
+  return crearFacturaEnTx(tx, {
+    id,
+    serie: "RECT",
+    kind: "rectificativa",
+    concept: original.concept,
+    issuedAt: ahora,
+    entidad,
+    mode: original.mode,
+    cliente: {
+      id: original.customerId,
+      name: original.customerName,
+      email: original.customerEmail,
+      nif: original.customerTaxId,
+      address: original.customerAddress,
+    },
+    lineas: lineasRectificativa(
+      original.lines.map((linea) => ({
+        description: linea.description,
+        quantity: linea.quantity,
+        unitPriceCentimos: aCentimos(Number(linea.unitPrice)),
+      })),
+    ),
+    vatRate: Number(original.vatRate),
+    paymentMethod: original.paymentMethod,
+    rectifiesInvoiceId: original.id,
+    reason: datos.motivo,
+    issuedById: datos.staffId,
+  });
 }
 
 /**
@@ -310,61 +381,12 @@ class SinCambios extends Error {
  * IVA, el concepto y los datos del cliente de la original. No toca el cobro ni
  * el estado de la entidad.
  */
-export async function emitirRectificativa(datos: {
-  invoiceId: string;
-  motivo: string;
-  staffId: string;
-}): Promise<ResultadoRectificativa> {
+export async function emitirRectificativa(
+  datos: DatosRectificativa,
+): Promise<ResultadoRectificativa> {
   try {
     return await prisma.$transaction(async (tx) => {
-      const original = await tx.invoice.findUnique({
-        where: { id: datos.invoiceId },
-        include: { lines: { orderBy: { position: "asc" } } },
-      });
-
-      if (!original) {
-        throw new SinCambios("no-existe");
-      }
-
-      const entidad: EntidadFacturable = original.orderId
-        ? { tipo: "pedido", id: original.orderId }
-        : { tipo: "solicitud", id: original.requestId as string };
-
-      await bloquearEntidadEnTx(tx, entidad);
-
-      const vigente = facturaVigente(await facturasDeEntidadEnTx(tx, entidad));
-
-      if (vigente?.id !== original.id) {
-        throw new SinCambios("no-vigente");
-      }
-
-      const factura = await crearFacturaEnTx(tx, {
-        serie: "RECT",
-        kind: "rectificativa",
-        concept: original.concept,
-        issuedAt: new Date(),
-        entidad,
-        mode: original.mode,
-        cliente: {
-          id: original.customerId,
-          name: original.customerName,
-          email: original.customerEmail,
-          nif: original.customerTaxId,
-          address: original.customerAddress,
-        },
-        lineas: lineasRectificativa(
-          original.lines.map((linea) => ({
-            description: linea.description,
-            quantity: linea.quantity,
-            unitPriceCentimos: aCentimos(Number(linea.unitPrice)),
-          })),
-        ),
-        vatRate: Number(original.vatRate),
-        paymentMethod: original.paymentMethod,
-        rectifiesInvoiceId: original.id,
-        reason: datos.motivo,
-        issuedById: datos.staffId,
-      });
+      const factura = await emitirRectificativaEnTx(tx, datos, new Date());
 
       return { ok: true as const, ...factura };
     });
@@ -381,63 +403,79 @@ export type ResultadoReemision =
   | { ok: true; id: string; code: string }
   | { ok: false; motivo: "no-existe" | "no-permitida" };
 
+type DatosReemision = {
+  entidad: EntidadFacturable;
+  motivo: string;
+  staffId: string;
+};
+
+/**
+ * Re-emisión dentro de una transacción ya abierta, emitida en `ahora`. Lanza
+ * `SinCambios` si la entidad no existe o no cumple las condiciones.
+ */
+export async function reemitirFacturaEnTx(
+  tx: Tx,
+  datos: DatosReemision,
+  ahora: Date,
+  id?: string,
+): Promise<{ id: string; code: string }> {
+  if (!(await bloquearEntidadEnTx(tx, datos.entidad))) {
+    throw new SinCambios("no-existe");
+  }
+
+  const estado =
+    datos.entidad.tipo === "pedido"
+      ? await tx.order.findUniqueOrThrow({
+          where: { id: datos.entidad.id },
+          select: { status: true, paidAt: true },
+        })
+      : await tx.serviceRequest.findUniqueOrThrow({
+          where: { id: datos.entidad.id },
+          select: { status: true, paidAt: true },
+        });
+  const facturas = await facturasDeEntidadEnTx(tx, datos.entidad);
+  const contenido = await contenidoFacturaEnTx(tx, datos.entidad);
+  const sustituida = facturas.filter((factura) => factura.kind === "ordinaria").at(-1);
+
+  if (
+    !contenido ||
+    !sustituida ||
+    !puedeReemitir({ pagada: estado.paidAt !== null, status: estado.status, facturas })
+  ) {
+    throw new SinCambios("no-permitida");
+  }
+
+  const original = await tx.invoice.findUniqueOrThrow({
+    where: { id: sustituida.id },
+    select: { vatRate: true },
+  });
+
+  return crearFacturaEnTx(tx, {
+    id,
+    serie: "FAC",
+    kind: "ordinaria",
+    concept: contenido.concept,
+    issuedAt: ahora,
+    entidad: datos.entidad,
+    cliente: contenido.cliente,
+    lineas: contenido.lineas,
+    vatRate: Number(original.vatRate),
+    paymentMethod: contenido.paymentMethod,
+    replacesInvoiceId: sustituida.id,
+    reissueReason: datos.motivo,
+    issuedById: datos.staffId,
+  });
+}
+
 /**
  * "Emitir factura de nuevo": nueva FAC a partir del cobro registrado, con los
  * datos actuales del cliente (por ejemplo, un NIF corregido) y el tipo de IVA
  * de la factura sustituida.
  */
-export async function reemitirFactura(datos: {
-  entidad: EntidadFacturable;
-  motivo: string;
-  staffId: string;
-}): Promise<ResultadoReemision> {
+export async function reemitirFactura(datos: DatosReemision): Promise<ResultadoReemision> {
   try {
     return await prisma.$transaction(async (tx) => {
-      if (!(await bloquearEntidadEnTx(tx, datos.entidad))) {
-        throw new SinCambios("no-existe");
-      }
-
-      const estado =
-        datos.entidad.tipo === "pedido"
-          ? await tx.order.findUniqueOrThrow({
-              where: { id: datos.entidad.id },
-              select: { status: true, paidAt: true },
-            })
-          : await tx.serviceRequest.findUniqueOrThrow({
-              where: { id: datos.entidad.id },
-              select: { status: true, paidAt: true },
-            });
-      const facturas = await facturasDeEntidadEnTx(tx, datos.entidad);
-      const contenido = await contenidoFacturaEnTx(tx, datos.entidad);
-      const sustituida = facturas.filter((factura) => factura.kind === "ordinaria").at(-1);
-
-      if (
-        !contenido ||
-        !sustituida ||
-        !puedeReemitir({ pagada: estado.paidAt !== null, status: estado.status, facturas })
-      ) {
-        throw new SinCambios("no-permitida");
-      }
-
-      const original = await tx.invoice.findUniqueOrThrow({
-        where: { id: sustituida.id },
-        select: { vatRate: true },
-      });
-
-      const factura = await crearFacturaEnTx(tx, {
-        serie: "FAC",
-        kind: "ordinaria",
-        concept: contenido.concept,
-        issuedAt: new Date(),
-        entidad: datos.entidad,
-        cliente: contenido.cliente,
-        lineas: contenido.lineas,
-        vatRate: Number(original.vatRate),
-        paymentMethod: contenido.paymentMethod,
-        replacesInvoiceId: sustituida.id,
-        reissueReason: datos.motivo,
-        issuedById: datos.staffId,
-      });
+      const factura = await reemitirFacturaEnTx(tx, datos, new Date());
 
       return { ok: true as const, ...factura };
     });

@@ -1,7 +1,10 @@
 # Spec Fase 4 — Cobros, datos y contabilidad
 
-**Estado:** spec cerrada, pendiente de implementar. Requiere la deuda previa (`deuda-fase4.md`) cerrada: el
-estado `caducado` y `Order.paidAt` ya existen.
+**Estado:** implementada. Hechas 4.0 (`a64bc0c`), 4.3a (`d9c708e`) y 4.3b: las
+retroactivas `MIG` (`acfb311`, migración `20261029101854_facturas_retroactivas`,
+aparte de la de 4.3a porque esa ya estaba aplicada) y el seed histórico
+(`596f969`, `src/server/seed/`), 4.1 (`9e031d0`, `/admin/dashboard`) y 4.2 (`ffea3e8`, `/admin/exportar/*.csv`). Requiere la deuda previa
+(`deuda-fase4.md`), ya cerrada.
 
 ## Objetivo
 Registrar cada cobro (pedido o reparación) con fecha, importe, método y quién lo

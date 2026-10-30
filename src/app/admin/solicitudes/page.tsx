@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { AttentionPanel } from "@/components/admin/attention-panel";
+import { ExportCsvForm } from "@/components/admin/export-csv-form";
+import { ultimosDias } from "@/lib/exports";
 import { RequestsTable } from "@/components/admin/requests-table";
 import {
   SERVICE_STATUSES,
@@ -20,17 +22,18 @@ export const metadata = {
 export default async function AdminSolicitudesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; repuesto?: string }>;
+  searchParams: Promise<{ estado?: string; repuesto?: string; cobro?: string }>;
 }) {
-  const { estado, repuesto } = await searchParams;
+  const { estado, repuesto, cobro } = await searchParams;
   const filtro = SERVICE_STATUSES.find((valor) => valor === estado);
   const soloFaltasRepuesto = repuesto === "1";
+  const soloPendientesCobro = cobro === "pendiente";
 
   // Expiraciones perezosas: así los contadores y el listado cuadran.
   await expirarPresupuestosVencidos();
 
   const [solicitudes, conteos, faltasPendientes] = await Promise.all([
-    listarSolicitudesAdmin(filtro, { soloFaltasRepuesto }),
+    listarSolicitudesAdmin(filtro, { soloFaltasRepuesto, soloPendientesCobro }),
     contarPorEstado(),
     contarFaltasRepuestoPendientes(),
   ]);
@@ -72,10 +75,22 @@ export default async function AdminSolicitudesPage({
         </p>
       ) : null}
 
+      {soloPendientesCobro ? (
+        <p
+          className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900"
+          role="status"
+        >
+          Solo reparaciones listas con importe pendiente de cobro.{" "}
+          <Link href="/admin/solicitudes" className="font-medium underline">
+            Ver todas las solicitudes
+          </Link>
+        </p>
+      ) : null}
+
       <nav aria-label="Filtrar por estado" className="flex flex-wrap gap-2 text-sm">
         <FiltroLink
           href="/admin/solicitudes"
-          activo={!filtro && !soloFaltasRepuesto}
+          activo={!filtro && !soloFaltasRepuesto && !soloPendientesCobro}
           etiqueta="Todas"
           total={total}
         />
@@ -83,12 +98,19 @@ export default async function AdminSolicitudesPage({
           <FiltroLink
             key={valor}
             href={`/admin/solicitudes?estado=${valor}`}
-            activo={filtro === valor && !soloFaltasRepuesto}
+            activo={filtro === valor && !soloFaltasRepuesto && !soloPendientesCobro}
             etiqueta={SERVICE_STATUS_META[valor].label}
             total={conteos[valor]}
           />
         ))}
       </nav>
+
+      <ExportCsvForm
+        accion="/admin/exportar/reparaciones.csv"
+        {...ultimosDias(new Date(), 30)}
+        filtros={{ estado: filtro }}
+        descripcion={`Una fila por solicitud con entrada en el rango${filtro ? `, solo «${SERVICE_STATUS_META[filtro].label}»` : ""}.`}
+      />
 
       <RequestsTable solicitudes={solicitudes} />
     </div>

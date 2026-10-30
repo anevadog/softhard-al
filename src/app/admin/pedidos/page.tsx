@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { ExportCsvForm } from "@/components/admin/export-csv-form";
 import { OrdersTable } from "@/components/admin/orders-table";
+import { ultimosDias } from "@/lib/exports";
 import { ORDER_STATUSES, ORDER_STATUS_META } from "@/lib/orders";
 import {
   contarPedidosPorEstado,
@@ -58,6 +60,13 @@ export default async function AdminPedidosPage({
           />
         ))}
       </nav>
+
+      <ExportCsvForm
+        accion="/admin/exportar/pedidos.csv"
+        {...ultimosDias(new Date(), 30)}
+        filtros={{ estado: filtro }}
+        descripcion={`Una fila por línea de pedido creado en el rango${filtro ? `, solo «${ORDER_STATUS_META[filtro].label}»` : ""}.`}
+      />
 
       <OrdersTable pedidos={pedidos} />
     </div>
