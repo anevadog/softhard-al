@@ -6,7 +6,8 @@
   contexto): Fase 3 → docs/specs/fase-3.md; deuda previa a la Fase 4 →
   docs/specs/deuda-fase4.md; Fase 4 → docs/specs/fase-4.md; Fase 5 →
   docs/specs/fase-5.md. Orden acordado: deuda → Fase 4 (4.0 → 4.3 → 4.1 → 4.2)
-  → Fase 5. Los cobros (pedidos y reparaciones) se registran en la propia
+  → Fase 5; todo completado. Lo pendiente está en el README ("Estado del proyecto
+  y trabajo futuro"). Los cobros (pedidos y reparaciones) se registran en la propia
   entidad desde 4.0 (`paidAt`, `paidAmount`…) y emiten la factura. Los ingresos
   se calculan sobre `Invoice.total` por `issuedAt` (rectificativas en negativo);
   `paidAt` es solo flujo de caja y auditoría.

@@ -1,5 +1,8 @@
 # Spec Fase 2 — Catálogo, carrito y pedidos
 
+**Estado:** completada. El paso de un pedido a `pagado`, la caducidad y los reembolsos
+cambiaron después (deuda previa a la Fase 4, Fases 4.0 y 5.3); ver el README.
+
 ## Objetivo
 
 Construir el flujo de compra de la tienda: catálogo público, ficha de producto,

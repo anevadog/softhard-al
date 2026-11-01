@@ -103,8 +103,9 @@ export function OrderStatusForm({
           {status === "pagado" ? (
             <>
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Esta aplicación no gestiona reembolsos. Al cancelar solo se
-                cambia el estado y se repone el stock.
+                Al cancelar se repone el stock. Si se cobró con la pasarela, el
+                pago se reembolsa automáticamente (simulado); un cobro manual se
+                devuelve fuera de la aplicación.
               </p>
 
               <div>

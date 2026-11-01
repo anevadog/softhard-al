@@ -1,5 +1,8 @@
 # Spec Fase 1 — SoftHard A&L
 
+**Estado:** completada. Las exclusiones de esta fase (pagos, facturación, emails…) se
+abordaron después en las Fases 4 y 5; ver el README.
+
 ## Objetivo
 MVP público + autenticación con roles + solicitud de servicio + panel mínimo del encargado.
 Sin pagos reales. Sin e-commerce. Sin tickets internos.

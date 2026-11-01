@@ -4,7 +4,9 @@
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
-`Fase 1 completada` · `Fase 2 completada` · `Fase 3 completada` · `Fase 4 completada` · `Fase 5 completada` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `609 tests + 106 de integración` · `CI en GitHub Actions`
+`Proyecto finalizado` · `Fases 1–5 completadas` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `609 tests + 106 de integración` · `CI en GitHub Actions`
+
+> **Estado:** la versión actual está terminada y es funcional de principio a fin. Lo que queda por hacer está etiquetado como **🚧 En construcción** (empezado, sin cerrar) o **🔭 Futuro** (planificado, sin empezar), con el motivo, en [Estado del proyecto y trabajo futuro](#estado-del-proyecto-y-trabajo-futuro).
 
 ## Capturas
 
@@ -19,6 +21,14 @@ Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, impor
 **Detalle de la solicitud**
 
 ![Detalle de una solicitud con el presupuesto y los botones para aceptar o rechazar](docs/capturas/detalle-solicitud.png)
+
+**Área del taller** (Fase 3, vista móvil): a la izquierda, el inicio del trabajador con su fichaje, sus reparaciones agrupadas por estado y las que puede tomar; a la derecha, el detalle de una reparación con el equipo, la visita, las acciones permitidas y sus fichajes
+
+<p>
+  <img src="docs/capturas/taller-panel.jpg" width="300" alt="Inicio del trabajador en móvil: tarjeta de fichaje en horas generales, cuatro reparaciones listas para entregar y dos aceptadas sin responsable para tomar">
+  &nbsp;
+  <img src="docs/capturas/taller-detalle.jpg" width="300" alt="Detalle de una reparación en móvil: equipo y avería, datos de la visita, acción para devolverla al encargado y dos fichajes registrados">
+</p>
 
 **Dashboard de ingresos** (Fase 4.1): ingresos netos por factura, por concepto y con las rectificativas restadas en su mes
 
@@ -54,7 +64,7 @@ Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, impor
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Decisiones de arquitectura](#decisiones-de-arquitectura)
 - [Roadmap](#roadmap)
-- [Fuera de alcance](#fuera-de-alcance)
+- [Estado del proyecto y trabajo futuro](#estado-del-proyecto-y-trabajo-futuro)
 - [Documentación](#documentación)
 
 ## Qué es
@@ -117,7 +127,7 @@ Las cinco fases están completadas: servicio técnico (1), tienda (2), taller in
 - Libro de stock con `stock_inicial`, `venta`, `cancelacion_pedido`, `reposicion` y `ajuste`; la invariante `stock = suma de movimientos` se mantiene en la misma transacción.
 - Ajuste manual de stock solo para `encargado` y `admin`, con motivo, variación, nota, vista previa y rechazo de stock negativo. Historial de los últimos 10 movimientos en la ficha del producto.
 - Panel `/admin/pedidos` con filtro por estado, contadores, cliente, fecha, total y estado; detalle con líneas a precio congelado y total.
-- Transiciones `pendiente → pagado | cancelado` y `pagado → entregado | cancelado`, aplicadas con actualización condicional sobre el estado esperado.
+- Transiciones de pedido aplicadas con actualización condicional sobre el estado esperado (en la Fase 2, `pendiente → pagado | cancelado` y `pagado → entregado | cancelado`; el paso a `pagado` cambió en la Fase 4.0, ver abajo).
 - Cancelación transaccional: repone todas las líneas (también archivadas), crea un movimiento positivo por línea y no repone dos veces. Cancelar un pedido pagado exige motivo; si se cobró con la pasarela (Fase 5.3), se reembolsa.
 - Los pedidos nacen en estado `pendiente`. Desde la Fase 4.0 solo pasan a `pagado` al registrar el cobro (manual o con la pasarela), y desde la deuda previa a la Fase 4 caducan a las 48 h sin pago.
 
@@ -171,106 +181,189 @@ Spec en [`docs/specs/fase-5.md`](docs/specs/fase-5.md).
 
 ## Puesta en marcha
 
-### Requisitos
+Esta guía lleva desde un equipo vacío hasta la aplicación funcionando en `http://localhost:3000` con datos de demostración. Los comandos están pensados para **Git Bash** (Windows), macOS o Linux.
 
-- **Node.js 24** (la versión exacta está en `.nvmrc`) y npm.
-- **Docker** (recomendado) o un **PostgreSQL 16** local.
-- Git.
+### Resumen rápido
 
-### Paso a paso
+Si ya tienes Node 24 y Docker:
 
 ```bash
-# 1. Clona el repositorio (privado: solicita acceso)
-git clone <url-del-repositorio>
+git clone <url-del-repositorio> softhard-al
 cd softhard-al
-
-# 2. Instala las dependencias
 npm install
+cp .env.example .env          # y pon un AUTH_SECRET propio (paso 3)
+docker compose up -d db
+npx prisma generate
+npx prisma migrate deploy
+npx prisma db seed
+npm run dev
+```
 
-# 3. Crea el archivo de entorno a partir del ejemplo
+Después entra con cualquiera de los [usuarios de prueba](#usuarios-de-prueba).
+
+### 1. Requisitos
+
+| Herramienta | Versión | Para qué |
+|---|---|---|
+| **Node.js** | 24 (exacta en `.nvmrc`: 24.22.1) | Ejecutar la aplicación. Incluye npm. |
+| **Git** | Cualquiera reciente | Clonar el repositorio. En Windows, Git Bash para los comandos de esta guía. |
+| **PostgreSQL 16** | Con **Docker** (recomendado) o instalado en el sistema | Base de datos. |
+
+Compruébalo con:
+
+```bash
+node -v
+npm -v
+docker -v
+```
+
+### 2. Clonar e instalar
+
+El repositorio es privado: pide acceso al autor si no lo tienes.
+
+```bash
+git clone <url-del-repositorio> softhard-al
+cd softhard-al
+npm install
+```
+
+### 3. Configurar el entorno
+
+```bash
 cp .env.example .env
 ```
 
-Edita `.env` y genera un secreto para `AUTH_SECRET`:
+El `.env` de ejemplo ya funciona con el PostgreSQL de Docker. Solo tienes que cambiar `AUTH_SECRET` por un valor aleatorio propio:
 
 ```bash
-# Git Bash, WSL o macOS/Linux
 openssl rand -base64 32
 ```
 
-En Windows sin OpenSSL, usa Git Bash/WSL o cualquier generador de secretos de al menos 32 bytes.
+Copia el resultado en `AUTH_SECRET="..."`. Sin OpenSSL, sirve cualquier generador de secretos de al menos 32 bytes.
 
-| Variable | Descripción |
-|---|---|
-| `DATABASE_URL` | Cadena de conexión a PostgreSQL |
-| `AUTH_SECRET` | Secreto con el que se firman los JWT |
-| `AUTH_URL` | URL base de la aplicación (`http://localhost:3000`) |
-| `NEXTAUTH_URL` | Compatibilidad con Auth.js v4; mismo valor que `AUTH_URL` |
-| `EMAIL_PROVIDER` | Opcional. `console` (por defecto: no envía nada), `mailpit` en desarrollo; `resend`, preparado pero no activo |
-| `MAILPIT_URL` | Opcional. API de Mailpit (`http://localhost:8025`) |
-| `EMAIL_FROM` | Opcional. Remitente de los emails (`SoftHard A&L (demo) <no-reply@softhard-al.demo>`) |
-| `APP_URL` | Opcional. URL base de los enlaces de los emails (`http://localhost:3000`) |
-| `PAYMENT_PROVIDER` | Opcional. `mock` (por defecto): pasarela simulada en `/pago/mock/<sesión>`, sin cobros reales; `stripe`, reservado y no activo |
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `DATABASE_URL` | Sí | Conexión a PostgreSQL. Por defecto `postgresql://postgres:postgres@localhost:5432/softhard?schema=public`, que coincide con `docker-compose.yml`. |
+| `AUTH_SECRET` | Sí | Secreto con el que se firman las sesiones (JWT). |
+| `AUTH_URL` | Sí | URL base de la aplicación: `http://localhost:3000`. |
+| `NEXTAUTH_URL` | Sí | Mismo valor que `AUTH_URL` (compatibilidad de Auth.js). |
+| `EMAIL_PROVIDER` | No | `console` (por defecto: el email se marca como enviado y aparece en `/admin/emails`, pero no sale de la aplicación) o `mailpit` (ver [Emails en desarrollo](#emails-en-desarrollo-mailpit)). |
+| `MAILPIT_URL` | No | API de Mailpit: `http://localhost:8025`. |
+| `EMAIL_FROM` | No | Remitente de los emails, por ejemplo `SoftHard A&L (demo) <no-reply@softhard-al.demo>`. |
+| `APP_URL` | No | URL base de los enlaces de los emails: `http://localhost:3000`. |
+| `PAYMENT_PROVIDER` | No | `mock` (por defecto): pasarela simulada en `/pago/mock/<sesión>`, sin cobros reales. |
+
+`EMAIL_PROVIDER=resend` y `PAYMENT_PROVIDER=stripe` aparecen en el código pero están **🚧 en construcción**: no se deben activar (ver [trabajo futuro](#estado-del-proyecto-y-trabajo-futuro)).
+
+### 4. Levantar la base de datos
+
+**Opción A: Docker (recomendada)**
 
 ```bash
-# 4. Levanta PostgreSQL con Docker
-docker compose up -d
+docker compose up -d db
 ```
 
-Si prefieres un PostgreSQL local, crea la base de datos y ajusta `DATABASE_URL`:
+Arranca PostgreSQL 16 en `localhost:5432` con usuario `postgres`, contraseña `postgres` y la base `softhard` ya creada. Los datos se guardan en un volumen y sobreviven a los reinicios.
+
+**Opción B: PostgreSQL instalado en el sistema**
+
+Crea la base y ajusta usuario y contraseña en `DATABASE_URL`:
 
 ```bash
 createdb softhard
 ```
 
+### 5. Crear las tablas
+
 ```bash
-# 5. Genera el cliente de Prisma y aplica las migraciones
 npx prisma generate
 npx prisma migrate deploy
+```
 
-# 6. Carga la configuración, los usuarios, los productos y el histórico de demostración
+`generate` crea el cliente de Prisma en `src/generated/` (no está en el repositorio) y `migrate deploy` aplica todas las migraciones de `prisma/migrations/`.
+
+### 6. Cargar los datos de demostración
+
+```bash
 npx prisma db seed
+```
 
-# 7. Arranca el servidor de desarrollo
+Crea la configuración del negocio, los usuarios de prueba, seis productos y un histórico de 12 meses con reparaciones, pedidos y facturas. Se puede repetir sin duplicar nada y se niega a ejecutarse si `DATABASE_URL` no apunta a una base local.
+
+### 7. Arrancar la aplicación
+
+```bash
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000).
+Abre [http://localhost:3000](http://localhost:3000) y entra con un [usuario de prueba](#usuarios-de-prueba). Para pararla, pulsa `Ctrl + C` en la terminal. Para parar la base de datos de Docker, `docker compose stop`.
 
-> `src/generated/` está excluido del repositorio. Si el cliente de Prisma no existe tras el clone, ejecuta `npx prisma generate`.
+### 8. Recorrido recomendado
+
+Un recorrido de unos 10 minutos para ver todo el flujo:
+
+1. **Visitante:** landing, catálogo en `/productos` y carrito.
+2. **`cliente@demo.local`:** crea una solicitud de reparación en `/app/solicitudes/nueva`, haz un pedido desde el carrito y págalo con **Pagar con tarjeta** (pasarela simulada). Después mira su factura en `/app/facturas`.
+3. **`encargado@demo.local`:** en `/admin/solicitudes` abre la solicitud nueva y emite un presupuesto. De paso, revisa `/admin/dashboard`, `/admin/facturas` (con exportación a CSV) y `/admin/reportes`.
+4. **`cliente@demo.local`:** acepta el presupuesto.
+5. **`encargado@demo.local`:** asigna la reparación aceptada a `trabajador@demo.local`.
+6. **`trabajador@demo.local`:** en `/trabajador` abre la reparación, pásala a "En reparación", ficha entrada y salida, deja una nota y márcala como lista.
+7. **`encargado@demo.local`:** registra el cobro (o deja que el cliente pague online) y marca la reparación como entregada; el cobro emite su factura.
+
+### 9. Comprobar que todo funciona (opcional)
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+```
+
+Los tests de integración usan una base aparte, `softhard_test`, que se crea una sola vez:
+
+```bash
+docker compose exec db createdb -U postgres softhard_test
+npm run test:integration
+```
+
+Con PostgreSQL instalado en el sistema, usa `createdb softhard_test` en lugar del primer comando.
 
 ### Emails en desarrollo (Mailpit)
 
-La app envía tres emails transaccionales: pedido confirmado (al crear el pedido), presupuesto listo y reparación lista. Se encolan en la tabla `pending_emails` en la misma transacción que el evento y los envía un worker. En desarrollo se capturan con [Mailpit](https://mailpit.axllent.org/): nada sale a Internet.
+La app envía tres emails transaccionales: pedido confirmado, presupuesto listo y reparación lista. Se guardan en la tabla `pending_emails` en la misma transacción que el evento y un worker los envía. Por defecto (`console`) se marcan como enviados y se consultan en `/admin/emails`, pero no se envían. Para verlos como emails de verdad, sin que salga nada a Internet, se usa [Mailpit](https://mailpit.axllent.org/):
 
 ```bash
-# 1. Levanta Mailpit (solo escucha en localhost: SMTP 1025, web 8025)
 docker compose up -d mailpit
 ```
 
-Sin Docker, descarga el binario de Mailpit para tu sistema desde sus *releases* en GitHub y ejecútalo; usa los mismos puertos por defecto.
-
-Añade a tu `.env` `EMAIL_PROVIDER="mailpit"` y reinicia `npm run dev`. Sin esa variable se usa `console`, que no envía nada.
+Añade `EMAIL_PROVIDER="mailpit"` a tu `.env`, reinicia `npm run dev` y, en otra terminal, arranca el worker de la cola:
 
 ```bash
-# 2. Arranca el worker de la cola (en otra terminal)
 npm run worker:emails
 ```
 
-Abre [http://localhost:8025](http://localhost:8025). Tras cada acción que encola, la app intenta además un envío inmediato (`after()` de Next), así que los emails suelen llegar aunque el worker no esté arrancado; si ese envío falla, lo recoge el worker. Los fallidos (5 intentos) se ven y se reintentan en `/admin/emails`. La entrega es **al menos una vez**: si el proceso cae justo entre el envío y la marca `enviado`, ese email puede llegar dos veces.
+Los emails se ven en [http://localhost:8025](http://localhost:8025). La app intenta además un envío inmediato tras cada acción, así que suelen llegar aunque el worker no esté arrancado; si ese envío falla, lo recoge el worker. Los fallidos (5 intentos) se reintentan desde `/admin/emails`. La entrega es **al menos una vez**: si el proceso cae justo entre el envío y la marca `enviado`, ese email puede llegar dos veces.
 
-### Producción
+> **🚧 En construcción:** el envío a un Mailpit real no se ha verificado a mano, porque el equipo de desarrollo no tiene Docker. El encolado, el worker, los reintentos y el panel están cubiertos por tests de integración con un proveedor simulado.
+
+### Build de producción (local)
 
 ```bash
 npm run build
 npm run start
 ```
 
+`npm run build` aplica antes las migraciones pendientes (`prisma migrate deploy`), así que necesita una `DATABASE_URL` válida. El despliegue en un servidor real está en [trabajo futuro](#estado-del-proyecto-y-trabajo-futuro).
+
 ### Problemas frecuentes
 
-- **El puerto 5432 está ocupado:** cambia el mapeo en `docker-compose.yml` (por ejemplo `5433:5432`) y actualiza `DATABASE_URL`.
-- **Error de cliente Prisma no inicializado:** ejecuta `npx prisma generate`.
-- **Falta `AUTH_SECRET`:** genera uno nuevo y reinicia el servidor.
+| Problema | Solución |
+|---|---|
+| El puerto 5432 está ocupado | Otro PostgreSQL está en marcha. Páralo o cambia el mapeo en `docker-compose.yml` (por ejemplo `5433:5432`) y el puerto en `DATABASE_URL`. |
+| `Cannot find module '../src/generated/prisma/client'` o cliente de Prisma no inicializado | Ejecuta `npx prisma generate` y reinicia `npm run dev`. |
+| Falta `AUTH_SECRET` o las sesiones fallan | Pon un `AUTH_SECRET` en `.env` (paso 3) y reinicia el servidor. |
+| `Seed bloqueado: el host ... no es local` | El seed solo funciona contra `localhost`, `127.0.0.1` o el servicio `db` de Docker. Revisa `DATABASE_URL`. |
+| La base de datos no tiene tablas | Faltan las migraciones: `npx prisma migrate deploy`. |
+| Tras cambiar el esquema la app usa datos viejos | Reinicia `npm run dev` después de `npx prisma generate`. |
 
 ## Usuarios de prueba
 
@@ -464,8 +557,10 @@ además, actualiza `lastActivityAt` y bloquea la fila frente a cambios simultán
 
 ### Gestión administrativa de pedidos
 
-Las transiciones viven en una única función pura: `pendiente → pagado | cancelado` y
-`pagado → entregado | cancelado`; `entregado` y `cancelado` son finales. Cada cambio
+Las transiciones manuales viven en una única función pura: `pendiente → cancelado` y
+`pagado → entregado | cancelado`. Un pedido solo pasa a `pagado` registrando su cobro
+(manual o con la pasarela, Fase 4.0) y a `caducado` lo lleva el sistema a las 48 h sin
+pago; `entregado`, `cancelado` y `caducado` son finales. Cada cambio
 se aplica con `updateMany` condicional sobre el estado esperado, de modo que dos
 pestañas o un doble clic no se pisan: la perdedora recibe un mensaje para recargar.
 
@@ -473,7 +568,8 @@ La cancelación lee las líneas dentro de la transacción y solo después de que
 actualización condicional haya cambiado una fila. Repone todas las líneas, incluidas
 las de productos archivados, y crea un movimiento positivo `cancelacion_pedido` por
 línea, ligado al pedido y al usuario. Una segunda cancelación no repone stock. Si el
-pedido estaba pagado, se exige motivo y se avisa de que no se gestiona reembolso.
+pedido estaba pagado, se exige motivo; si se cobró con la pasarela, su sesión de pago
+se reembolsa (simulado). Un cobro manual se devuelve fuera de la aplicación.
 
 ### Seguridad y permisos
 
@@ -551,7 +647,7 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] D3 Dirección de recogida en las visitas a domicilio.
 - [x] D4 Tests de integración contra PostgreSQL real.
 - [x] D5 El panel de fichajes conserva semana y trabajador tras cerrar o corregir.
-- [ ] Capturas del README con el taller (manual).
+- [x] Capturas del área del taller en el README.
 
 ### Deuda previa a la Fase 4 — completada
 
@@ -571,25 +667,39 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] 5.1 CI con GitHub Actions.
 - [x] 5.2 Emails transaccionales con outbox, worker y Mailpit.
 - [x] 5.3 Pasarela de pago simulada con reembolsos.
-- [ ] Prueba manual del envío real a Mailpit.
+- 🚧 Prueba manual del envío a un Mailpit real (pendiente de un equipo con Docker; ver [trabajo futuro](#estado-del-proyecto-y-trabajo-futuro)).
 
-## Fuera de alcance
+## Estado del proyecto y trabajo futuro
 
-Estas funciones quedan fuera del alcance actual (ver también las specs de cada fase):
+La versión actual está **terminada**: las cinco fases funcionan de principio a fin, con tests, CI y documentación. Cubre la parte **operativa** de un servicio técnico con tienda: atención al cliente, presupuestos, taller, tienda, stock, cobros, facturación simulada, ingresos y comunicaciones.
 
-- Pagos reales: la pasarela es simulada (proveedor `mock`) y no hay cobros ni reembolsos de verdad.
-- Validez fiscal real de las facturas (Verifactu, TicketBAI, SII), firma y QR: son facturas simuladas.
-- Pago por adelantado del diagnóstico (`requireDiagnosticPaymentUpfront` solo está modelado).
-- Historial de estados de pedido.
-- Integración del catálogo con el área de cliente (recomendaciones o personalización).
-- Reserva de stock al añadir al carrito (los pedidos pendientes sí caducan a las 48 h y liberan su stock).
-- Sincronización del carrito con la cuenta al iniciar sesión.
-- Cupones y envíos.
-- Tickets internos e inventario de repuestos.
-- Pausas, aprobación de horas y nóminas.
-- Contabilidad.
-- Emails más allá de los tres transaccionales, envío real con un proveedor en producción y notificaciones push.
-- Historial completo de correcciones de fichajes y control de solapes tras una corrección: solo se guarda el último editor (deuda anotada).
+Una empresa real necesita además otras áreas que forman, junto a esta, una unidad completa: personas (recursos humanos), compras y proveedores, contabilidad, cumplimiento legal y la puesta en producción. Quedaron fuera a propósito para que el proyecto tuviera un alcance que se pudiera terminar, probar y documentar bien. Cada una se ha dejado apuntada con su motivo y, cuando existe, con el punto del código desde el que se continuaría.
+
+**Leyenda:** **🚧 En construcción**: empezado en el código o en los datos, sin terminar ni activar. **🔭 Futuro**: planificado, sin empezar.
+
+### 🚧 En construcción
+
+| Qué | Qué hay hoy | Qué falta | Por qué no se ha cerrado |
+|---|---|---|---|
+| Verificación de emails con Mailpit | Outbox, worker, reintentos y panel `/admin/emails`, con tests de integración y un proveedor simulado. Servicio `mailpit` en `docker-compose.yml`. | Comprobar a mano que llegan a un Mailpit real. | El equipo de desarrollo no tiene Docker. El código no depende de esa prueba. |
+| Envío real de emails (Resend) | Proveedor `resend` escrito en `src/server/providers/email.ts`, desactivado. | Dominio verificado, clave de API y pruebas con envíos reales. | Exige una cuenta y un dominio propios, y enviar emails a personas reales no tiene sentido con datos ficticios. |
+| Pagos reales (Stripe) | Pasarela simulada (`mock`) completa, con sesiones, idempotencia y reembolsos. El nombre `stripe` está reservado en `src/server/providers/payments.ts`. | Checkout Session de Stripe, webhook firmado y conciliación. | Cobrar dinero real queda fuera de un proyecto con datos ficticios. La pasarela simulada ya demuestra el diseño. |
+| Pago por adelantado del diagnóstico | La opción `requireDiagnosticPaymentUpfront` existe en la configuración. | Pedir el pago del diagnóstico antes de aceptar la solicitud. | Cambia el flujo de alta de solicitudes; se dejó solo modelado para no romper el flujo ya probado. |
+| Historial de correcciones de fichajes | Al corregir un fichaje se guarda quién y cuándo hizo la última corrección. | Historial completo de cambios y aviso de solapes entre fichajes corregidos. | Es una mejora de auditoría; el fichaje funciona y se puede corregir. |
+
+### 🔭 Futuro
+
+| Área | Qué incluiría | Por qué no está en esta versión |
+|---|---|---|
+| **Recursos humanos** | Ficha de empleado, contratos, turnos y calendario, vacaciones y ausencias, aprobación de horas, pausas y nóminas, a partir de los fichajes que ya existen. | Es un módulo entero con datos personales sensibles (RGPD) y normativa laboral; hoy los trabajadores son solo usuarios con rol `trabajador`. |
+| **Compras y proveedores** | Proveedores, pedidos de compra, recepción de mercancía y reposición automática de stock. | Hoy la reposición es un ajuste manual del libro de stock. Necesita su propio modelo de datos. |
+| **Inventario de repuestos** | Piezas usadas en cada reparación, con coste y stock propio. | La falta de repuesto se avisa con una nota; descontar piezas exige enlazar taller, stock y compras. |
+| **Contabilidad** | Libro diario, gastos, impuestos trimestrales y conciliación bancaria. | Las facturas e ingresos ya existen; la contabilidad completa es un dominio propio, normalmente un programa aparte. |
+| **Facturación con validez fiscal** | Verifactu o TicketBAI, SII, firma y código QR. | Depende de normativa y servicios de la Agencia Tributaria; las facturas actuales son simuladas y lo indican. |
+| **Atención al cliente** | Tickets o chat, valoraciones y garantías de las reparaciones. | El seguimiento se hace hoy con los estados de la solicitud y las notas internas. |
+| **Tienda ampliada** | Envíos y transportistas, cupones, reserva de stock en el carrito, sincronización del carrito con la cuenta, historial de estados del pedido y recomendaciones. | La tienda cubre el ciclo de compra completo con recogida; estas mejoras amplían el comercio electrónico, no el núcleo. |
+| **Notificaciones** | Notificaciones push y más emails (recordatorios, encuestas). | Los tres emails transaccionales cubren los momentos clave del flujo. |
+| **Despliegue en producción** | Servidor o plataforma, base de datos gestionada, dominio, HTTPS, copias de seguridad y monitorización. | El proyecto se ejecuta en local y con CI; publicarlo implica costes y datos reales, fuera del objetivo de portafolio. |
 
 ## Documentación
 

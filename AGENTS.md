@@ -20,11 +20,14 @@ Proyecto de portfolio del dueño. Repo privado. Datos ficticios en demo.
 - `src/app/trabajador/` área de taller (trabajador/encargado/admin), mobile-first
 - `src/app/api/auth/` handler de Auth.js
 - `src/middleware.ts` protección de `/app`, `/admin` y `/trabajador` por rol
-- `src/components/` UI reutilizable (`admin/`, `taller/`, `service-requests/`, `site/`, `cart/`, `orders/`; `payments/` previsto en 4.0 para "Registrar pago manual")
+- `src/app/pago/mock/` página de la pasarela de pago simulada
+- `src/components/` UI reutilizable (`admin/`, `taller/`, `service-requests/`, `site/`, `cart/`, `orders/`, `payments/`, `invoices/`, `auth/`)
 - `src/lib/` db, auth, permisos (`authz.ts`), reglas puras (estados, importes, stock, fichajes, notas, avisos y reportes), formato de fechas en Europe/Madrid y `validations/`
 - `src/server/authorization.ts` guards `requerirStaff` y `requerirPersonalTaller` (revalidan el rol en BD)
 - `src/server/actions/` Server Actions
 - `src/server/data/` consultas y escrituras con control de propiedad
+- `src/server/exports/`, `src/server/providers/` y `src/server/seed/` exportación CSV, proveedores de email y pago, y datos demo
+- `scripts/worker-emails.ts` worker de la cola de emails (`npm run worker:emails`)
 - `src/generated/` cliente de Prisma generado (no versionado)
 - `prisma/` esquema, migraciones y seed
 - `docs/specs/` specs por fase (`fase-1.md`, `fase-2.md`, `fase-3.md`, `deuda-fase4.md`, `fase-4.md`, `fase-5.md`)
@@ -61,5 +64,5 @@ Proyecto de portfolio del dueño. Repo privado. Datos ficticios en demo.
 - Tareas grandes: primero plan (archivos, pasos, casos límite, dudas), luego build.
 - Actualizar `memory.md` al terminar cada tarea.
 
-## Fuera de alcance Fase 1
-Pagos reales, e-commerce completo, tickets internos, contabilidad, facturación, notificaciones email.
+## Estado y alcance
+Proyecto terminado (Fases 1–5). Lo pendiente está en el README, sección "Estado del proyecto y trabajo futuro", etiquetado como 🚧 En construcción o 🔭 Futuro con su motivo. Antes de ampliar algo de esa lista, escribir su spec en `docs/specs/`.
