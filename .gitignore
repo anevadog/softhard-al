@@ -44,6 +44,9 @@ coverage/
 next-env.d.ts
 .vercel
 
-# OpenCode / agentes
+# Agentes de IA (solo en local)
 .opencode/
-.claude/launch.json
+.claude/
+CLAUDE.md
+AGENTS.md
+memory.md
