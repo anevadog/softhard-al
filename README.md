@@ -1,10 +1,32 @@
 # SoftHard A&L
 
+[![CI](https://github.com/anevadog/softhard-al/actions/workflows/ci.yml/badge.svg)](https://github.com/anevadog/softhard-al/actions/workflows/ci.yml)
+
 **Web de servicios técnicos y venta de productos de informática.** Reparación de ordenadores, portátiles e impresoras, con solicitud online, presupuesto y seguimiento desde el área de cliente.
 
 Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, importes y marcas que aparecen en la aplicación son **datos ficticios**: no hay clientes ni pagos reales.
 
 `Proyecto finalizado` · `Fases 1–5 completadas` · `Next.js 15` · `TypeScript` · `PostgreSQL` · `609 tests + 106 de integración` · `CI en GitHub Actions`
+
+## En 30 segundos
+
+**Qué es.** La aplicación que me habría gustado tener cuando dirigía mi propio servicio técnico (2020–2024). Cubre el ciclo completo de un taller de reparación con tienda online: el cliente pide una reparación, el encargado presupuesta, el trabajador la repara y ficha su tiempo, y el taller cobra, factura y sigue sus ingresos.
+
+**Pruébalo.** <!-- DEMO: sustituir por el enlace de Vercel cuando el seed esté cargado en Neon --> Demo online: *próximamente*. En local, en unos 10 minutos con la [puesta en marcha](#puesta-en-marcha). Usuarios de prueba en [esta tabla](#usuarios-de-prueba).
+
+**Decisiones técnicas que puedo explicar:**
+
+- **El stock nunca queda en negativo.** Si dos clientes compran la última unidad a la vez, solo uno lo consigue: el descuento es condicional y va dentro de una transacción. → [Checkout atómico](#checkout-atómico-e-idempotente)
+- **Un doble clic no crea dos pedidos.** Cada intento de compra lleva una clave única y la base de datos rechaza el duplicado. → [Idempotencia](#checkout-atómico-e-idempotente)
+- **El dinero no se calcula con decimales flotantes.** Todos los importes van en céntimos y el servidor los recalcula siempre; nunca se fía de lo que llega del formulario. → [Regla del descuento](#regla-del-descuento)
+- **Los estados de una reparación los decide una sola función.** Qué rol puede pasar de qué estado a cuál está en un único sitio, probado con tests. → [Taller](#taller-concurrencia-y-reglas-en-servidor)
+- **Los permisos se comprueban en el servidor en cada acción**, no solo en la pantalla. → [Seguridad](#seguridad-y-permisos)
+
+**Cómo lo hice.** Lo desarrollé por fases con agentes de IA (OpenCode y Claude Code). Yo definí el alcance de cada fase, revisé el código, lo probé y tomé las decisiones. Las especificaciones de cada fase están en [`docs/specs/`](docs/specs/) y lo que queda pendiente, con su motivo, en [trabajo futuro](#estado-del-proyecto-y-trabajo-futuro).
+
+**Stack.** Next.js 15 · React 19 · TypeScript · PostgreSQL 16 · Prisma 7 · Auth.js · Zod · Vitest · Docker · GitHub Actions.
+
+---
 
 > **Estado:** la versión actual está terminada y es funcional de principio a fin. Lo que queda por hacer está etiquetado como **🚧 En construcción** (empezado, sin cerrar) o **🔭 Futuro** (planificado, sin empezar), con el motivo, en [Estado del proyecto y trabajo futuro](#estado-del-proyecto-y-trabajo-futuro).
 
@@ -54,6 +76,7 @@ Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, impor
 
 ## Índice
 
+- [En 30 segundos](#en-30-segundos)
 - [Capturas](#capturas)
 - [Qué es](#qué-es)
 - [Funcionalidad](#funcionalidad)
@@ -188,7 +211,7 @@ Esta guía lleva desde un equipo vacío hasta la aplicación funcionando en `htt
 Si ya tienes Node 24 y Docker:
 
 ```bash
-git clone <url-del-repositorio> softhard-al
+git clone https://github.com/anevadog/softhard-al.git
 cd softhard-al
 npm install
 cp .env.example .env          # y pon un AUTH_SECRET propio (paso 3)
@@ -219,10 +242,8 @@ docker -v
 
 ### 2. Clonar e instalar
 
-El repositorio es privado: pide acceso al autor si no lo tienes.
-
 ```bash
-git clone <url-del-repositorio> softhard-al
+git clone https://github.com/anevadog/softhard-al.git
 cd softhard-al
 npm install
 ```
@@ -343,7 +364,7 @@ npm run worker:emails
 
 Los emails se ven en [http://localhost:8025](http://localhost:8025). La app intenta además un envío inmediato tras cada acción, así que suelen llegar aunque el worker no esté arrancado; si ese envío falla, lo recoge el worker. Los fallidos (5 intentos) se reintentan desde `/admin/emails`. La entrega es **al menos una vez**: si el proceso cae justo entre el envío y la marca `enviado`, ese email puede llegar dos veces.
 
-> **🚧 En construcción:** el envío a un Mailpit real no se ha verificado a mano, porque el equipo de desarrollo no tiene Docker. El encolado, el worker, los reintentos y el panel están cubiertos por tests de integración con un proveedor simulado.
+> **🚧 En construcción:** el envío a un Mailpit real todavía no se ha verificado a mano. El encolado, el worker, los reintentos y el panel están cubiertos por tests de integración con un proveedor simulado.
 
 ### Build de producción (local)
 
@@ -667,7 +688,7 @@ La lógica sensible está aislada en funciones puras y cubierta con **Vitest**: 
 - [x] 5.1 CI con GitHub Actions.
 - [x] 5.2 Emails transaccionales con outbox, worker y Mailpit.
 - [x] 5.3 Pasarela de pago simulada con reembolsos.
-- 🚧 Prueba manual del envío a un Mailpit real (pendiente de un equipo con Docker; ver [trabajo futuro](#estado-del-proyecto-y-trabajo-futuro)).
+- 🚧 Prueba manual del envío a un Mailpit real (ver [trabajo futuro](#estado-del-proyecto-y-trabajo-futuro)).
 
 ## Estado del proyecto y trabajo futuro
 
@@ -681,7 +702,7 @@ Una empresa real necesita además otras áreas que forman, junto a esta, una uni
 
 | Qué | Qué hay hoy | Qué falta | Por qué no se ha cerrado |
 |---|---|---|---|
-| Verificación de emails con Mailpit | Outbox, worker, reintentos y panel `/admin/emails`, con tests de integración y un proveedor simulado. Servicio `mailpit` en `docker-compose.yml`. | Comprobar a mano que llegan a un Mailpit real. | El equipo de desarrollo no tiene Docker. El código no depende de esa prueba. |
+| Verificación de emails con Mailpit | Outbox, worker, reintentos y panel `/admin/emails`, con tests de integración y un proveedor simulado. Servicio `mailpit` en `docker-compose.yml`. | Comprobar a mano que llegan a un Mailpit real. | Es una comprobación manual pendiente; el código no depende de ella y está cubierto por tests de integración. |
 | Envío real de emails (Resend) | Proveedor `resend` escrito en `src/server/providers/email.ts`, desactivado. | Dominio verificado, clave de API y pruebas con envíos reales. | Exige una cuenta y un dominio propios, y enviar emails a personas reales no tiene sentido con datos ficticios. |
 | Pagos reales (Stripe) | Pasarela simulada (`mock`) completa, con sesiones, idempotencia y reembolsos. El nombre `stripe` está reservado en `src/server/providers/payments.ts`. | Checkout Session de Stripe, webhook firmado y conciliación. | Cobrar dinero real queda fuera de un proyecto con datos ficticios. La pasarela simulada ya demuestra el diseño. |
 | Pago por adelantado del diagnóstico | La opción `requireDiagnosticPaymentUpfront` existe en la configuración. | Pedir el pago del diagnóstico antes de aceptar la solicitud. | Cambia el flujo de alta de solicitudes; se dejó solo modelado para no romper el flujo ya probado. |
