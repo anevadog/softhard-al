@@ -12,7 +12,7 @@ Proyecto de portafolio de **Alexander Nevado**. Los usuarios, solicitudes, impor
 
 **Qué es.** La aplicación que me habría gustado tener cuando dirigía mi propio servicio técnico (2020–2024). Cubre el ciclo completo de un taller de reparación con tienda online: el cliente pide una reparación, el encargado presupuesta, el trabajador la repara y ficha su tiempo, y el taller cobra, factura y sigue sus ingresos.
 
-**Pruébalo.** <!-- DEMO: sustituir por el enlace de Vercel cuando el seed esté cargado en Neon --> Demo online: *próximamente*. En local, en unos 10 minutos con la [puesta en marcha](#puesta-en-marcha). Usuarios de prueba en [esta tabla](#usuarios-de-prueba).
+**Pruébalo.** Demo online en **[softhard-al.vercel.app](https://softhard-al.vercel.app)** (Vercel + Neon, con los datos ficticios del seed; cualquiera puede modificarlos y se restauran de vez en cuando). En local, en unos 10 minutos con la [puesta en marcha](#puesta-en-marcha). Usuarios de prueba en [esta tabla](#usuarios-de-prueba).
 
 **Decisiones técnicas que puedo explicar:**
 
