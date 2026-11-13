@@ -309,7 +309,7 @@ npx prisma migrate deploy
 npx prisma db seed
 ```
 
-Crea la configuración del negocio, los usuarios de prueba, seis productos y un histórico de 12 meses con reparaciones, pedidos y facturas. Se puede repetir sin duplicar nada y se niega a ejecutarse si `DATABASE_URL` no apunta a una base local.
+Crea la configuración del negocio, los usuarios de prueba, seis productos y un histórico de 12 meses con reparaciones, pedidos y facturas. Se puede repetir sin duplicar nada y, por seguridad, se niega a ejecutarse si `DATABASE_URL` no apunta a una base local, salvo que se active a propósito `SEED_ALLOW_PRODUCTION="true"` (así se cargó la demo online).
 
 ### 7. Arrancar la aplicación
 
@@ -373,7 +373,7 @@ npm run build
 npm run start
 ```
 
-`npm run build` aplica antes las migraciones pendientes (`prisma migrate deploy`), así que necesita una `DATABASE_URL` válida. El despliegue en un servidor real está en [trabajo futuro](#estado-del-proyecto-y-trabajo-futuro).
+`npm run build` aplica antes las migraciones pendientes (`prisma migrate deploy`), así que necesita una `DATABASE_URL` válida. La demo online se construye igual en Vercel, contra una base de Neon; lo que faltaría para un uso real está en [trabajo futuro](#estado-del-proyecto-y-trabajo-futuro).
 
 ### Problemas frecuentes
 
@@ -382,13 +382,13 @@ npm run start
 | El puerto 5432 está ocupado | Otro PostgreSQL está en marcha. Páralo o cambia el mapeo en `docker-compose.yml` (por ejemplo `5433:5432`) y el puerto en `DATABASE_URL`. |
 | `Cannot find module '../src/generated/prisma/client'` o cliente de Prisma no inicializado | Ejecuta `npx prisma generate` y reinicia `npm run dev`. |
 | Falta `AUTH_SECRET` o las sesiones fallan | Pon un `AUTH_SECRET` en `.env` (paso 3) y reinicia el servidor. |
-| `Seed bloqueado: el host ... no es local` | El seed solo funciona contra `localhost`, `127.0.0.1` o el servicio `db` de Docker. Revisa `DATABASE_URL`. |
+| `Seed bloqueado: el host ... no es local` | Sin confirmación, el seed solo funciona contra `localhost`, `127.0.0.1` o el servicio `db` de Docker. Revisa `DATABASE_URL`; si de verdad quieres cargar la demo en una base remota, añade `SEED_ALLOW_PRODUCTION="true"`. |
 | La base de datos no tiene tablas | Faltan las migraciones: `npx prisma migrate deploy`. |
 | Tras cambiar el esquema la app usa datos viejos | Reinicia `npm run dev` después de `npx prisma generate`. |
 
 ## Usuarios de prueba
 
-El seed es idempotente (solo crea lo que falta; lo que ya existe no se toca) y solo se ejecuta contra una base local. Crea estas cuentas, todas con la misma contraseña: **`Demo1234!`**
+El seed es idempotente (solo crea lo que falta; lo que ya existe no se toca) y, salvo activación explícita con `SEED_ALLOW_PRODUCTION`, solo se ejecuta contra una base local. Crea estas cuentas, todas con la misma contraseña: **`Demo1234!`**
 
 | Email | Rol | Acceso |
 |---|---|---|
@@ -720,7 +720,7 @@ Una empresa real necesita además otras áreas que forman, junto a esta, una uni
 | **Atención al cliente** | Tickets o chat, valoraciones y garantías de las reparaciones. | El seguimiento se hace hoy con los estados de la solicitud y las notas internas. |
 | **Tienda ampliada** | Envíos y transportistas, cupones, reserva de stock en el carrito, sincronización del carrito con la cuenta, historial de estados del pedido y recomendaciones. | La tienda cubre el ciclo de compra completo con recogida; estas mejoras amplían el comercio electrónico, no el núcleo. |
 | **Notificaciones** | Notificaciones push y más emails (recordatorios, encuestas). | Los tres emails transaccionales cubren los momentos clave del flujo. |
-| **Despliegue en producción** | Servidor o plataforma, base de datos gestionada, dominio, HTTPS, copias de seguridad y monitorización. | El proyecto se ejecuta en local y con CI; publicarlo implica costes y datos reales, fuera del objetivo de portafolio. |
+| **Producción real** | Dominio propio, copias de seguridad, monitorización y separación entre entornos. | Ya hay una demo pública en Vercel + Neon (planes gratuitos, datos ficticios que se restauran); operar con clientes reales implica costes y datos personales, fuera del objetivo de portafolio. |
 
 ## Documentación
 
@@ -730,9 +730,6 @@ Una empresa real necesita además otras áreas que forman, junto a esta, una uni
 - [`docs/specs/deuda-fase4.md`](docs/specs/deuda-fase4.md) — caducidad de pedidos pendientes y tests de integración del checkout.
 - [`docs/specs/fase-4.md`](docs/specs/fase-4.md) — cobros, facturación simulada, seed histórico, dashboard de ingresos y exportación a CSV.
 - [`docs/specs/fase-5.md`](docs/specs/fase-5.md) — CI, emails transaccionales con outbox y pasarela de pago simulada.
-- [`AGENTS.md`](AGENTS.md) — convenciones y reglas de trabajo del repositorio.
-- [`memory.md`](memory.md) — estado y notas de continuidad del proyecto.
-
 ---
 
 Proyecto de portafolio de **Alexander Nevado**. Todos los datos son ficticios y no se realiza ningún cobro real.
